@@ -107,6 +107,42 @@ This project uses ESLint and Prettier for linting and formatting.
 
 ## Using Prisma
 
+### Running the Database with Docker Compose
+
+To simplify database setup during development, you can use Docker Compose to run a PostgreSQL database. Follow these steps:
+
+1. **Start the database service**:
+   ```bash
+   docker-compose up -d
+   ```
+
+   This will start a PostgreSQL database accessible at `localhost:5432` with the following credentials:
+   - **Username**: prisma
+   - **Password**: prisma
+   - **Database**: prisma
+
+2. **Update the `.env` file**:
+   Ensure your `.env` file contains the following `DATABASE_URL`:
+   ```
+   DATABASE_URL="postgresql://prisma:prisma@localhost:5432/prisma"
+   ```
+
+3. **Run Prisma commands**:
+   - Generate the Prisma client:
+     ```bash
+     npx prisma generate
+     ```
+   - Apply migrations:
+     ```bash
+     npx prisma migrate dev
+     ```
+   - Open Prisma Studio:
+     ```bash
+     npx prisma studio
+     ```
+
+Refer to the [Prisma documentation](https://www.prisma.io/docs) for more details.
+
 Prisma is used as the database ORM for this project. Below are some common commands to get started:
 
 -   **Generate Prisma Client:**
