@@ -20,6 +20,7 @@ The monorepo is organized into two main directories:
 -   **Monorepo Management:** TurboRepo
 -   **Backend:** NestJS (TypeScript)
 -   **Web Applications:** Next.js (React, TypeScript)
+-   **Database ORM:** Prisma
 
 ## Setup and Installation
 
@@ -79,6 +80,27 @@ This project uses ESLint and Prettier for linting and formatting.
     ```bash
     npm run format
     ```
+
+## Using Prisma
+
+Prisma is used as the database ORM for this project. Below are some common commands to get started:
+
+-   **Generate Prisma Client:**
+    ```bash
+    npx prisma generate
+    ```
+
+-   **Run Migrations:**
+    ```bash
+    npx prisma migrate dev
+    ```
+
+-   **Open Prisma Studio:**
+    ```bash
+    npx prisma studio
+    ```
+
+Refer to the [Prisma documentation](https://www.prisma.io/docs) for more details.
 
 ## Contributing
 
