@@ -1,4 +1,5 @@
 // app/page.tsx (or pages/index.tsx)
+import './globals.css';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -89,7 +90,7 @@ export default function LandingPage() {
         <div className="hidden md:block relative mx-auto pt-4">
           <Image src={heroImage} alt="Hero" />
           <Image src={arrow} alt="" className="absolute -top-2 -right-20 w-24" />
-          <p className="absolute -top-20 -right-48 text-lg">
+          <p className="absolute -top-20 -right-48 text-lg text-black">
             Inschrijvingen open nog<br /> tot 30 minuten voor de bezorging!
           </p>
         </div>
