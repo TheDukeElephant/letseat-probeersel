@@ -1,5 +1,5 @@
 # Let's Eat Monorepo
-Dit is even een probeersel van de lets eat layout zoals ik hem voor mij zie hoe het makkelijk in 1 repository gedaan kan worden.
+Dit is even een probeersel van de lets eat repository layout zoals ik hem voor mij zie hoe het makkelijk in 1 repository gedaan kan worden. Hier draaien zowel de frontend als de backend vanuit 1 mapje. Alles geschreven in typescript.
 
 
 This repository contains the codebase for the "Let's Eat" project, structured as a monorepo using [TurboRepo](https://turbo.build/). It includes multiple applications and shared packages.
@@ -17,19 +17,31 @@ The monorepo is organized into two main directories:
 
 ## Technologies Used
 
--   **Monorepo Management:** TurboRepo
+-   **Monorepo Management:** TurboRepo (heel erg handig om 1 repo te hebben voor (meerdere) projecten (frontend, backend zijn losse projecten))
 -   **Backend:** NestJS (TypeScript)
 -   **Web Applications:** Next.js (React, TypeScript)
--   **Database ORM:** Prisma
+-   **Database ORM:** Prisma (Zo min mogelijk eigen sql schrijven heeft mijn leven beter gemaakt)
 
 ## Setup and Installation
 
-1.  **Clone the repository:**
+1.  **Install things on your computer this project needs:**
+    NodeJS:
+    Download from website:
+    [NodeJS Download](https://nodejs.org/en/download)
+    Turborepo:
+    ```bash
+    npm i turbo
+    ```
+    NestJS:
+    ```bash
+    npm i -g @nestjs/cli
+    ```
+2.  **Clone the repository:**
     ```bash
     git clone <repository_url>
-    cd letseat
+    cd letseat-probeersel
     ```
-2.  **Install dependencies:**
+3.  **Install dependencies:**
     Use your preferred package manager. This project uses `npm`.
     ```bash
     npm install
