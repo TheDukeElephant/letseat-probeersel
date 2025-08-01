@@ -1,3 +1,5 @@
+# Make sure that in production no passwords are hardcoded in the codebase.
+
 services:
   database:
     image: postgres:15
