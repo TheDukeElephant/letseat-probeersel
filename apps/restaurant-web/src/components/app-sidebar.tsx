@@ -35,8 +35,8 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "restaurant1",
+    email: "info@restaurant1.com",
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
@@ -162,7 +162,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Let's Eat</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
