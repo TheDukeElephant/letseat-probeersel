@@ -1,4 +1,6 @@
 # Let's Eat Monorepo
+Dit is even een probeersel van de lets eat layout zoals ik hem voor mij zie hoe het makkelijk in 1 repository gedaan kan worden.
+
 
 This repository contains the codebase for the "Let's Eat" project, structured as a monorepo using [TurboRepo](https://turbo.build/). It includes multiple applications and shared packages.
 
@@ -9,22 +11,15 @@ The monorepo is organized into two main directories:
 -   `apps/`: Contains all the individual applications.
     -   `admin-web`: Admin web application (Next.js).
     -   `backend`: Backend API (NestJS).
-    -   `mobile`: Mobile application (React Native/Expo).
     -   `restaurant-web`: Restaurant-facing web application (Next.js).
-    -   `user-web`: User-facing web application (Next.js).
     -   `web`: General web application (Next.js).
--   `packages/`: Contains shared packages used across applications.
-    -   `types`: Shared TypeScript types and interfaces.
-    -   `ui`: Shared UI components.
-    -   `utils`: Shared utility functions.
+
 
 ## Technologies Used
 
 -   **Monorepo Management:** TurboRepo
 -   **Backend:** NestJS (TypeScript)
 -   **Web Applications:** Next.js (React, TypeScript)
--   **Mobile Application:** React Native / Expo (TypeScript)
--   **Shared Packages:** TypeScript
 
 ## Setup and Installation
 
@@ -50,10 +45,6 @@ You can run individual applications or multiple applications concurrently using 
 -   **Run the backend:**
     ```bash
     npm run dev --filter=apps/backend
-    ```
--   **Run the mobile application:**
-    ```bash
-    npm run dev --filter=apps/mobile
     ```
 -   **Run a specific application (e.g., user-web):**
     ```bash
