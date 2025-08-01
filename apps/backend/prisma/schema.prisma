@@ -29,7 +29,11 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  orders   Order[]
 }
+
 
 model Restaurant {
   id        String   @id @default(cuid())
@@ -38,4 +42,21 @@ model Restaurant {
   address   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  orders   Order[]
+}
+
+
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  restaurantId String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
 }
