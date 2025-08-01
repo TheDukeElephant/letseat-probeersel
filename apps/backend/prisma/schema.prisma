@@ -15,6 +15,10 @@ datasource db {
 }
 
 
+/* -------------------------------------------------- *
+ * ENUMS
+ * -------------------------------------------------- */
+
 enum Role {
   USER
   RESTAURANT
@@ -25,46 +29,212 @@ enum OrderStatus {
   PENDING
   ACCEPTED
   REJECTED
+  IN_PROGRESS   // being prepared / on the way
   COMPLETED
   CANCELLED
 }
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  QUEUED       // waiting for driver assignment
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
+/* -------------------------------------------------- *
+ * CORE MODELS
+ * -------------------------------------------------- */
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  phone     String?
   password  String
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  orders   Order[]
+  // relations
+  orders    Order[]
+  addresses Address[]
 }
-
 
 model Restaurant {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  address   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  orders   Order[]
-}
-
-
-model Order {
   id          String   @id @default(cuid())
-  userId      String
-  restaurantId String
-  status      OrderStatus @default(PENDING)
+  name        String
+  slug        String   @unique          // e.g. “sushi-spot”
+  email       String   @unique
+  phone       String?
+  description String?
+  address     String                    // human-readable address
+  lat         Decimal?                  // PostGIS POINT (stored as decimal here)
+  lng         Decimal?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  user        User     @relation(fields: [userId], references: [id])
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  // relations
+  menus       Menu[]
+  orders      Order[]
+  addresses   Address[]
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?  @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  deliveries Delivery[]
+}
+
+/* -------------------------------------------------- *
+ * CATALOG
+ * -------------------------------------------------- */
+
+model Menu {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  categories   MenuCategory[]
+}
+
+model MenuCategory {
+  id        String   @id @default(cuid())
+  menuId    String
+  name      String
+  sortOrder Int      @default(0)
+
+  menu      Menu      @relation(fields: [menuId], references: [id])
+  items     MenuItem[]
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  categoryId  String
+  name        String
+  description String?
+  price       Decimal
+  imageUrl    String?
+  isEnabled   Boolean  @default(true)
+  stock       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+}
+
+/* -------------------------------------------------- *
+ * ORDER FLOW
+ * -------------------------------------------------- */
+
+model Order {
+  id              String        @id @default(cuid())
+  userId          String
+  restaurantId    String
+  status          OrderStatus   @default(PENDING)
+  totalAmount     Decimal
+  currency        String        @default("EUR")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // snapshot of delivery address (keeps history even if user edits address later)
+  deliveryAddressLine String
+  deliveryPostalCode  String
+  deliveryCity        String
+  deliveryLat         Decimal?
+  deliveryLng         Decimal?
+
+  // relations
+  user        User        @relation(fields: [userId], references: [id])
+  restaurant  Restaurant  @relation(fields: [restaurantId], references: [id])
+  items       OrderItem[]
+  payment     Payment?
+  delivery    Delivery?
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  menuItemId  String
+  quantity    Int
+  price       Decimal   // price at time of purchase
+
+  order       Order     @relation(fields: [orderId], references: [id])
+  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  provider          String        // "adyen", "mollie", ...
+  providerPaymentId String
+  status            PaymentStatus @default(PENDING)
+  amount            Decimal
+  currency          String
+  paidAt            DateTime?
+
+  order             Order         @relation(fields: [orderId], references: [id])
+}
+
+model Delivery {
+  id            String         @id @default(cuid())
+  orderId       String         @unique
+  driverId      String?
+  status        DeliveryStatus @default(QUEUED)
+  estimatedAt   DateTime?
+  pickedUpAt    DateTime?
+  deliveredAt   DateTime?
+
+  order         Order   @relation(fields: [orderId], references: [id])
+  driver        Driver? @relation(fields: [driverId], references: [id])
+}
+
+/* -------------------------------------------------- *
+ * ADDRESSES (optional multi-address support)
+ * -------------------------------------------------- */
+
+model Address {
+  id            String   @id @default(cuid())
+  userId        String?
+  restaurantId  String?
+  label         String?          // "Home", "Kitchen", etc.
+  street        String
+  houseNumber   String
+  postalCode    String
+  city          String
+  country       String  @default("NL")
+  lat           Decimal?
+  lng           Decimal?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User?       @relation(fields: [userId], references: [id])
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id])
+
+  @@index([userId])
+  @@index([restaurantId])
 }
