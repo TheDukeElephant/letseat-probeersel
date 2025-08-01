@@ -82,6 +82,8 @@ You can run individual applications or multiple applications concurrently using 
 
 ### Running the Database with Docker Compose
 
+It is very important to check that no application is running with the same port as we want to use the database port!
+This will save you a lot of headache.
 To simplify database setup during development, you can use Docker Compose to run a PostgreSQL database. Follow these steps:
 
 1. **Make/Update the `.env` file**:
@@ -90,10 +92,10 @@ To simplify database setup during development, you can use Docker Compose to run
    POSTGRES_USER=[your username]
    POSTGRES_PASSWORD=[your password]
    POSTGRES_DB=[your db name]
-   DATABASE_URL="postgresql://[your username]:[your password]@localhost:5432/[your db name]"
+   DATABASE_URL="postgresql://[your username]:[your password]@localhost:5434/[your db name]"
    ```
 
-   This will start a PostgreSQL database accessible at `localhost:5432` with the following credentials:
+   This will start a PostgreSQL database accessible at `localhost:5434` with the following credentials:
    - **Username**: [your username]
    - **Password**: [your password]
    - **Database**: prisma
