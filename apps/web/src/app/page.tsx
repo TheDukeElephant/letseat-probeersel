@@ -1,103 +1,170 @@
-import Image from "next/image";
+// app/page.tsx (or pages/index.tsx)
+import Image from 'next/image';
+import Link from 'next/link';
 
-export default function Home() {
+// Import your images from public or relevant asset pipeline
+import arrow from '@/public/assets/landing/arrow.svg';
+import heroImage from '@/public/assets/landing/hero-image.png';
+import underline from '@/public/assets/landing/underline.png';
+import deliveryIcon from '@/public/assets/landing/icons/delivery.svg';
+import locationIcon from '@/public/assets/landing/icons/location.svg';
+import starIcon from '@/public/assets/landing/icons/star.svg';
+import sportverenigingen from '@/public/assets/landing/sportverenigingen.jpg';
+import studentenverenigingen from '@/public/assets/landing/studentenverenigingen.jpg';
+import jaarclubs from '@/public/assets/landing/jaarclubs.jpg';
+import bars from '@/public/assets/landing/bars.jpg';
+import click from '@/public/assets/landing/icons/click.svg';
+import link from '@/public/assets/landing/icons/link.svg';
+import checkbox from '@/public/assets/landing/icons/checkbox.svg';
+import map from '@/public/assets/landing/map.svg';
+
+const statistics = [
+  { label: 'maaltijden bezorgd', value: '33.5k', icon: deliveryIcon },
+  { label: 'op tijd bezorgd', value: '94%', icon: locationIcon },
+  { label: 'sterren op google', value: '5/5', icon: starIcon },
+];
+
+const howSteps = [
+  {
+    icon: click,
+    title: '1. Start een bestelling',
+    description: 'Vul binnen 3 minuten je gegevens in en ontvang jouw unieke link.',
+  },
+  {
+    icon: link,
+    title: '2. Deel jouw unieke link',
+    description: 'Stuur jouw unieke link naar alle personen die uitgenodigd zijn. Zelf aantallen toevoegen is uiteraard ook mogelijk.',
+  },
+  {
+    icon: checkbox,
+    title: '3. Klaar',
+    description: 'Wij verzamelen de inschrijvingen (en betalingen) en zorgen dat het eten ready-to-serve op tafel komt.',
+  },
+];
+
+const whenCards = [
+  {
+    src: sportverenigingen,
+    title: 'Sportverenigingen',
+    options: ['Trainingen', 'Toernooien', "ALV's", 'Introductieweekenden', 'Wedstrijden'],
+  },
+  {
+    src: studentenverenigingen,
+    title: 'Studie- en studentenverenigingen',
+    options: ['Wekelijkse borrels', 'Studeeravonden', "ALV's", 'Introductieweekenden', 'Commissie-avonden'],
+  },
+  {
+    src: jaarclubs,
+    title: 'Studentenhuizen en jaarclubs',
+    options: ['Reünies', '', 'Feestjes', '', 'Huisdiners'],
+  },
+  {
+    src: bars,
+    title: 'Bars en cafés',
+    description: 'Trek meer klanten door naast een pilsje een betaalbare maaltijd te faciliteren.',
+  },
+];
+
+export default function LandingPage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <main className="pt-16 px-4 md:px-0">
+      {/* HERO SECTION */}
+      <section className="text-center">
+        <h1 className="text-3xl md:text-[2.75rem] md:leading-[1.3] font-medium max-w-4xl mx-auto">
+          Organiseer warm avondeten voor €5,50 p.p. in{' '}
+          <span className="inline-block relative">
+            3
+            <Image src={underline} alt="" className="absolute max-w-8 md:max-w-12 -m-1 md:-m-[6px]" />
+          </span>{' '}
+          minuten.
+        </h1>
+        <p className="text-lg md:text-2xl pt-8 max-w-xl mx-auto">
+          Hoe? Start een bestelling en deel jouw unieke link. Wij verzorgen de inschrijvingen, bereiding én bezorging.
+        </p>
+        <div className="pt-16">
+          <Link href="/list/create" className="bg-turquoise text-white rounded-lg px-16 py-3 text-lg md:text-2xl font-light hover:bg-richturquoise">
+            Bestelling starten
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <div className="hidden md:block relative mx-auto pt-4">
+          <Image src={heroImage} alt="Hero" />
+          <Image src={arrow} alt="" className="absolute -top-2 -right-20 w-24" />
+          <p className="absolute -top-20 -right-48 text-lg">
+            Inschrijvingen open nog<br /> tot 30 minuten voor de bezorging!
+          </p>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="flex flex-col md:flex-row justify-around gap-8 py-16">
+        {statistics.map((stat) => (
+          <div key={stat.label} className="mx-auto font-light text-center">
+            <div className="flex flex-row gap-4 items-center justify-center">
+              <p className="text-5xl">{stat.value}</p>
+              <Image src={stat.icon} alt={stat.label} className="h-12 w-12" />
+            </div>
+            <p className="text-lg md:text-2xl pt-2">{stat.label}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* HOW SECTION */}
+      <section className="py-16 text-center">
+        <h2 className="text-2xl md:text-3xl font-semibold mb-8">Hoe werkt het?</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+          {howSteps.map((step) => (
+            <div key={step.title} className="flex flex-col items-center">
+              <Image src={step.icon} alt="" className="w-24 h-24" />
+              <h3 className="font-semibold pt-12">{step.title}</h3>
+              <p className="font-light pt-4">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* WHEN SECTION */}
+      <section className="py-16 text-center">
+        <h2 className="text-2xl md:text-3xl font-semibold mb-4">Wanneer?</h2>
+        <p className="text-sm md:text-base mb-12 max-w-3xl mx-auto">
+          Hieronder een aantal momenten waarop je SimplyMeals kunt gebruiken,<br /> maar wees vooral creatief - bijna alles is gezelliger mét lekker eten!
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-6xl mx-auto">
+          {whenCards.map((card) => (
+            <div
+              key={card.title}
+              className="relative rounded-3xl overflow-hidden h-44 md:h-64 text-white"
+            >
+              <div className="w-full h-full bg-black">
+                <Image src={card.src} alt="" className="w-full h-full object-cover object-center opacity-35" />
+              </div>
+              <div className="absolute top-0 left-0 w-full h-full p-4 md:p-6 font-light">
+                <h3 className="md:text-3xl font-semibold pb-4">{card.title}</h3>
+                {card.description ? (
+                  <p dangerouslySetInnerHTML={{ __html: card.description }} />
+                ) : (
+                  <p className="inline-grid grid-cols-2 gap-x-4">
+                    {card.options?.map((option, i) => option && <span key={i}>{option}</span>)}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* WHERE SECTION */}
+      <section className="py-16 text-center">
+        <h2 className="text-2xl md:text-3xl font-semibold mb-4">Waar?</h2>
+        <p className="text-sm md:text-base mb-8">
+          Momenteel bezorgen we in en rondom de oranje steden.
+        </p>
+        <Image src={map} alt="Map" className="rounded-xl max-w-5xl mx-auto" />
+        <p className="pt-8 font-light">
+          Staat jouw regio er nog niet bij?<br />
+          Laat hier je gegevens achter en wie weet bezorgen we binnenkort ook bij jou.
+        </p>
+        {/* You can add a form component here */}
+      </section>
+    </main>
   );
 }
