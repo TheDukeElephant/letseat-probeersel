@@ -27,8 +27,11 @@ The monorepo is organized into two main directories:
 1.  **Install things on your computer this project needs:**
 
     NodeJS:
+    
     Download from website:
     [NodeJS Download](https://nodejs.org/en/download)
+
+
     Turborepo:
     ```bash
     npm i turbo
