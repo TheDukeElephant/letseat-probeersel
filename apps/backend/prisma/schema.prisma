@@ -21,6 +21,14 @@ enum Role {
   ADMIN
 }
 
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -52,7 +60,7 @@ model Order {
   id          String   @id @default(cuid())
   userId      String
   restaurantId String
-  status      String   @default("PENDING")
+  status      OrderStatus @default(PENDING)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
