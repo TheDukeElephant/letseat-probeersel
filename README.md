@@ -76,34 +76,7 @@ You can run individual applications or multiple applications concurrently using 
 -   `admin-web`: Running on `localhost:3002` (Next.js).
 -   `backend`: Running on `localhost:4000` (NestJS).
 -   `restaurant-web`: Running on `localhost:3001` (Next.js).
--   `web`: Running on `localhost:3000` (Next.js).
-
-## Building Applications
-
-To build all applications:
-
-```bash
-npm run build
-```
-
-To build a specific application (e.g., backend):
-
-```bash
-npm run build --filter=apps/backend
-```
-
-## Linting and Formatting
-
-This project uses ESLint and Prettier for linting and formatting.
-
--   **Lint all projects:**
-    ```bash
-    npm run lint
-    ```
--   **Format all projects:**
-    ```bash
-    npm run format
-    ```
+-   `web`: Running on `localhost:3003` (Next.js).
 
 ## Using Prisma
 
@@ -111,23 +84,28 @@ This project uses ESLint and Prettier for linting and formatting.
 
 To simplify database setup during development, you can use Docker Compose to run a PostgreSQL database. Follow these steps:
 
-1. **Start the database service**:
+1. **Make/Update the `.env` file**:
+   Ensure your `.env` file contains the following:
+   ```
+   POSTGRES_USER=[your username]
+   POSTGRES_PASSWORD=[your password]
+   POSTGRES_DB=[your db name]
+   DATABASE_URL="postgresql://[your username]:[your password]@localhost:5432/[your db name]"
+   ```
+
+   This will start a PostgreSQL database accessible at `localhost:5432` with the following credentials:
+   - **Username**: [your username]
+   - **Password**: [your password]
+   - **Database**: prisma
+
+2. **Start the database service**:
    ```bash
    docker-compose up -d
    ```
 
-   This will start a PostgreSQL database accessible at `localhost:5432` with the following credentials:
-   - **Username**: prisma
-   - **Password**: prisma
-   - **Database**: prisma
-
-2. **Update the `.env` file**:
-   Ensure your `.env` file contains the following `DATABASE_URL`:
-   ```
-   DATABASE_URL="postgresql://prisma:prisma@localhost:5432/prisma"
-   ```
-
 3. **Run Prisma commands**:
+    Prisma is used as the database ORM for this project. Below are some common commands to get started:
+
    - Generate the Prisma client:
      ```bash
      npx prisma generate
@@ -143,29 +121,37 @@ To simplify database setup during development, you can use Docker Compose to run
 
 Refer to the [Prisma documentation](https://www.prisma.io/docs) for more details.
 
-Prisma is used as the database ORM for this project. Below are some common commands to get started:
+## Linting and Formatting
 
--   **Generate Prisma Client:**
+This project uses ESLint and Prettier for linting and formatting.
+
+-   **Lint all projects:**
     ```bash
-    npx prisma generate
+    npm run lint
     ```
-
--   **Run Migrations:**
+-   **Format all projects:**
     ```bash
-    npx prisma migrate dev
+    npm run format
     ```
+## Building Applications
 
--   **Open Prisma Studio:**
-    ```bash
-    npx prisma studio
-    ```
+To build all applications:
 
-Refer to the [Prisma documentation](https://www.prisma.io/docs) for more details.
+```bash
+npm run build
+```
+
+To build a specific application (e.g., backend):
+
+```bash
+npm run build --filter=apps/backend
+```
+
 
 ## Contributing
 
-(Add contributing guidelines here if applicable)
+Stuur berichtje
 
 ## License
 
-(Add license information here)
+-
