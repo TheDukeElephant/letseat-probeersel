@@ -54,16 +54,17 @@ The monorepo is organized into two main directories:
 ## Running Applications
 
 You can run individual applications or multiple applications concurrently using TurboRepo.
+For some features the database is needed. Make sure the docker is running and database is working.
 
 -   **Run all applications:**
     ```bash
     npm run dev
     ```
--   **Run the backend:**
+-   **Run (only) the backend:**
     ```bash
     npm run dev --filter=apps/backend
     ```
--   **Run a specific application (e.g., (user) web):**
+-   **Run (only) a specific application (e.g., (user) web):**
     ```bash
     npm run dev --filter=apps/web
     ```
@@ -73,9 +74,9 @@ Refer to the individual `package.json` files within each app directory for speci
 ## Localhost ports
 
 You can run individual applications or multiple applications concurrently using TurboRepo.
--   `admin-web`: Running on `localhost:3002` (Next.js).
+-   `admin-web`: Running on `localhost:3001` (Next.js).
 -   `backend`: Running on `localhost:4000` (NestJS).
--   `restaurant-web`: Running on `localhost:3001` (Next.js).
+-   `restaurant-web`: Running on `localhost:3002` (Next.js).
 -   `web`: Running on `localhost:3003` (Next.js).
 
 ## Using Prisma
@@ -98,7 +99,7 @@ To simplify database setup during development, you can use Docker Compose to run
    This will start a PostgreSQL database accessible at `localhost:5434` with the following credentials:
    - **Username**: [your username]
    - **Password**: [your password]
-   - **Database**: prisma
+   - **Database**: [your db name]
 
 2. **Start the database service**:
    ```bash
