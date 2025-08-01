@@ -3,20 +3,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 // Import your images from public or relevant asset pipeline
-import arrow from '@/public/assets/landing/arrow.svg';
-import heroImage from '@/public/assets/landing/hero-image.png';
-import underline from '@/public/assets/landing/underline.png';
-import deliveryIcon from '@/public/assets/landing/icons/delivery.svg';
-import locationIcon from '@/public/assets/landing/icons/location.svg';
-import starIcon from '@/public/assets/landing/icons/star.svg';
-import sportverenigingen from '@/public/assets/landing/sportverenigingen.jpg';
-import studentenverenigingen from '@/public/assets/landing/studentenverenigingen.jpg';
-import jaarclubs from '@/public/assets/landing/jaarclubs.jpg';
-import bars from '@/public/assets/landing/bars.jpg';
-import click from '@/public/assets/landing/icons/click.svg';
-import link from '@/public/assets/landing/icons/link.svg';
-import checkbox from '@/public/assets/landing/icons/checkbox.svg';
-import map from '@/public/assets/landing/map.svg';
+import arrow from '@/assets/landing/arrow.svg';
+import heroImage from '@/assets/landing/hero-image.png';
+import underline from '@/assets/landing/underline.png';
+import deliveryIcon from '@/assets/landing/icons/delivery.svg';
+import locationIcon from '@/assets/landing/icons/location.svg';
+import starIcon from '@/assets/landing/icons/star.svg';
+import sportverenigingen from '@/assets/landing/sportverenigingen.jpg';
+import studentenverenigingen from '@/assets/landing/studentenverenigingen.jpg';
+import jaarclubs from '@/assets/landing/jaarclubs.jpg';
+import bars from '@/assets/landing/bars.jpg';
+import click from '@/assets/landing/icons/click.svg';
+import link from '@/assets/landing/icons/link.svg';
+import checkbox from '@/assets/landing/icons/checkbox.svg';
+import map from '@/assets/landing/map.svg';
 
 const statistics = [
   { label: 'maaltijden bezorgd', value: '33.5k', icon: deliveryIcon },
