@@ -12,7 +12,7 @@ The monorepo is organized into two main directories:
     -   `admin-web`: Admin web application (Next.js).
     -   `backend`: Backend API (NestJS).
     -   `restaurant-web`: Restaurant-facing web application (Next.js).
-    -   `web`: General web application (Next.js).
+    -   `web`: General web application for the users (Next.js).
 
 
 ## Technologies Used
@@ -39,17 +39,17 @@ The monorepo is organized into two main directories:
 
 You can run individual applications or multiple applications concurrently using TurboRepo.
 
--   **Run all web applications:**
+-   **Run all applications:**
     ```bash
-    npm run dev --filter="apps/*-web"
+    npm run dev
     ```
 -   **Run the backend:**
     ```bash
     npm run dev --filter=apps/backend
     ```
--   **Run a specific application (e.g., user-web):**
+-   **Run a specific application (e.g., (user) web):**
     ```bash
-    npm run dev --filter=apps/user-web
+    npm run dev --filter=apps/web
     ```
 
 Refer to the individual `package.json` files within each app directory for specific scripts.
