@@ -1,7 +1,10 @@
 # dependencies
 /node_modules
-**/node_modules
+**/node_modules/
 **/.next/*
+**/dist
+**/build
+
 # build outputs
 /dist
 /build

@@ -1,17 +1,29 @@
 {
-  "name": "letseat",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "name": "letseat-probeersel",
+  "version": "1.0.0",
+  "description": "This repository contains the codebase for the \"Let's Eat\" project, structured as a monorepo using [TurboRepo](https://turbo.build/). It includes multiple applications and shared packages.",
+  "main": "index.js",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint"
   },
-  "devDependencies": {
-    "turbo": "^1.12.0"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheDukeElephant/letseat-probeersel.git"
   },
-  "packageManager": "npm@10.8.1"
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TheDukeElephant/letseat-probeersel/issues"
+  },
+  "homepage": "https://github.com/TheDukeElephant/letseat-probeersel#readme",
+  "devDependencies": {
+    "turbo": "^2.5.5"
+  }
 }
