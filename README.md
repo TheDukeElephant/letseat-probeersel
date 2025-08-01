@@ -1,4 +1,4 @@
-# Let's Eat Monorepo
+# Let's Eat Probeersel
 Dit is even een probeersel van de lets eat repository layout zoals ik hem voor mij zie hoe het makkelijk in 1 repository gedaan kan worden. Hier draaien zowel de frontend als de backend vanuit 1 mapje. Alles geschreven in typescript.
 
 
@@ -25,6 +25,7 @@ The monorepo is organized into two main directories:
 ## Setup and Installation
 
 1.  **Install things on your computer this project needs:**
+
     NodeJS:
     Download from website:
     [NodeJS Download](https://nodejs.org/en/download)
