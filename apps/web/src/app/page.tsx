@@ -87,10 +87,15 @@ export default function LandingPage() {
             Bestelling starten
           </Link>
         </div>
-        <div className="hidden md:block relative mx-auto pt-4">
+        <div className="hidden md:flex flex-col items-center relative mx-auto pt-4">
           <Image src={heroImage} alt="Hero" />
-          <Image src={arrow} alt="" className="absolute -top-2 -right-20 w-24" />
-          <p className="absolute -top-20 -right-48 text-lg text-black">
+          <Image
+            src={arrow}
+            alt=""
+            className="absolute top-2 right-0 w-24"
+            style={{ transform: 'translateX(-90%)' }}
+          />
+          <p className="absolute -top-20 -right-1 text-lg text-black">
             Inschrijvingen open nog<br /> tot 30 minuten voor de bezorging!
           </p>
         </div>
