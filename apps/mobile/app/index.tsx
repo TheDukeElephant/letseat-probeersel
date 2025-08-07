@@ -2,7 +2,8 @@ import { SafeAreaView, Image, Pressable, View, Text, FlatList, TouchableOpacity,
 import { offers } from "@/constants/index";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
-import { Fragment, useState } from "react";
+import Slider from '@react-native-community/slider';
+import { Fragment, useState, useMemo } from "react";
 
 export default function Index() {
   // ────────────────────────────────────────────────────────────────────────────────
@@ -82,12 +83,12 @@ export default function Index() {
           source={{ uri: "https://randomuser.me/api/portraits/men/32.jpg" }}
           className="w-9 h-9 rounded-full"
         />
-        <View>
+        <View className="pl-2">
           <Text className="text-xs text-gray-500">Mijn balans</Text>
           <Text className="font-semibold text-sm">€ 1,55</Text>
         </View>
       </View>
-      <View className="flex-row space-x-4">
+      <View className="pr-4 flex-row space-x-7">
         {/* Chat icon with badge */}
         <View>
           <Ionicons name="chatbubble-ellipses-outline" size={22} />
@@ -96,7 +97,7 @@ export default function Index() {
           </View>
         </View>
         {/* Bell icon with badge */}
-        <View>
+        <View className="pl-4">
           <Ionicons name="notifications-outline" size={22} />
           <View className="absolute -top-1 -right-2 bg-blue-600 rounded-full w-4 h-4 items-center justify-center">
             <Text className="text-[10px] text-white font-semibold">2</Text>
@@ -110,23 +111,26 @@ export default function Index() {
   // Order Details section
   // ────────────────────────────────────────────────────────────────────────────────
   const OrderDetails = () => (
-    <View className="px-4 mb-6">
-      <Text className="text-lg font-semibold mb-3">Order details</Text>
+    <View className="px-4 mb-6 pt-4">
+      <View className="flex-row items-center justify-between">
 
-      {/* Delivery/Pickup toggle */}
-      <View className="flex-row bg-gray-100 p-1 rounded-full self-start mb-4">
-        {(["Delivery", "Pickup"] as const).map((type) => {
-          const isActive = orderType === type;
-          return (
-            <TouchableOpacity
-              key={type}
-              className={`px-4 py-1 rounded-full ${isActive ? "bg-blue-600" : ""}`}
-              onPress={() => setOrderType(type)}
-            >
-              <Text className={`text-sm ${isActive ? "text-white" : "text-gray-700"}`}>{type}</Text>
-            </TouchableOpacity>
-          );
-        })}
+        <Text className="text-lg px-2 font-bold mb-3">Order details</Text>
+
+        {/* Delivery/Pickup toggle */}
+        <View className="flex-row bg-gray-100 p-1 rounded-full self-start mb-4">
+          {(["Delivery", "Pickup"] as const).map((type) => {
+            const isActive = orderType === type;
+            return (
+              <TouchableOpacity
+                key={type}
+                className={`px-4 py-1 rounded-full ${isActive ? "bg-blue-600" : ""}`}
+                onPress={() => setOrderType(type)}
+              >
+                <Text className={`text-sm ${isActive ? "text-white" : "text-gray-700"}`}>{type}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Date row */}
@@ -152,44 +156,67 @@ export default function Index() {
   // ────────────────────────────────────────────────────────────────────────────────
   // Group Size slider section
   // ────────────────────────────────────────────────────────────────────────────────
-  //const enableScroll = () => setScrollEnabled(true);
-  //const disableScroll = () => setScrollEnabled(false);
+  // Define your non-linear steps
+  const BUCKETS = [
+    { label: "3–5",   range: [3, 5] },
+    { label: "5–10",  range: [5, 10] },
+    { label: "10–20", range: [10, 20] },
+    { label: "20–30", range: [20, 30] },
+    { label: "30–50", range: [30, 50] },
+    { label: "50–100", range: [50, 100] },
+    { label: "100+", range: [100, Infinity] },
+  ] as const;
 
-  const GroupSize = () => (
-    <View className="px-4 mb-6">
-      <Text className="text-lg font-semibold">Estimated group size</Text>
-      <Text className="text-xs text-gray-500 mb-2">Discounts will be determined by the final group size.</Text>
-      <View className="bg-white rounded-xl p-4 shadow-sm">
-        <MultiSlider
-          values={groupSize}
-          min={1}
-          max={100}
-          step={5}
-          onValuesChange={setGroupSize}
-          //onValuesChangeStart={disableScroll}
-          //onValuesChangeFinish={enableScroll}
-          selectedStyle={{
-            backgroundColor: "#077bef",
-          }}
-          unselectedStyle={{
-            backgroundColor: "#e5e7eb",
-          }}
-          trackStyle={{
-            height: 4,
-            borderRadius: 2,
-          }}
-          markerStyle={{
-            backgroundColor: "#077bef",
-            height: 20,
-            width: 20,
-            borderRadius: 10,
-          }}
-          sliderLength={280}
-        />
-        <Text className="self-center mt-2 text-sm font-medium">{groupSize[0]}</Text>
+  const START_INDEX = 1; // e.g. "5–10" as the starting value
+
+  function GroupSize() {
+    const [idx, setIdx] = useState(START_INDEX);
+    const current = BUCKETS[idx];
+
+    // If you also want a single number (e.g., midpoint) for logic:
+    const groupSize = useMemo(
+      () => Math.round((current.range[0] + current.range[1]) / 2),
+      [current]
+    );
+
+    return (
+      <View className="px-4 mb-6 bg-gray-100">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-lg font-semibold">Estimated group size</Text>
+          <Text className="self-center mt-2 text-base font-bold font-medium">
+            {current.label} {/* or show {groupSize} if you prefer a single number */}
+          </Text>
+        </View>
+
+        <Text className="text-xs text-gray-500 mb-2">
+          Discounts will be determined by the final group size.
+        </Text>
+
+        <View className="rounded-xl p-1 items-center shadow-sm">
+          <Slider
+            style={{ width: "95%", height: 40 }}
+            minimumValue={0}
+            maximumValue={BUCKETS.length - 1}
+            step={1}
+            value={START_INDEX} // starting bucket
+            onValueChange={(v) => setIdx(Math.round(v))}
+            onSlidingComplete={(v) => {
+              const i = Math.round(v);
+              const sel = BUCKETS[i];
+              // e.g., save sel.range or midpoint here
+              // saveGroupSize({ label: sel.label, range: sel.range, midpoint: groupSize })
+            }}
+            minimumTrackTintColor="#1390cf"
+            maximumTrackTintColor="#d9d9d9"
+            // Optional extras (from the lib’s props you pasted):
+            // renderStepNumber={true}
+            // StepMarker={({ isSelected }) => <View style={{ width: 2, height: 8, opacity: isSelected ? 1 : 0.5, backgroundColor: 'black' }} />}
+          />
+        </View>
       </View>
-    </View>
-  );
+    );
+  }
+
 
   // ────────────────────────────────────────────────────────────────────────────────
   // Restaurants List Header
@@ -202,7 +229,7 @@ export default function Index() {
   // Main render
   // ────────────────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-100">
       <FlatList
         data={offers}
         keyExtractor={(item) => item.id.toString()}
