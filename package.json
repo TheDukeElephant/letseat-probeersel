@@ -21,7 +21,6 @@
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
-
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -30,6 +29,7 @@
   },
   "homepage": "https://github.com/TheDukeElephant/letseat-probeersel#readme",
   "devDependencies": {
+    "babel-plugin-module-resolver": "^5.0.2",
     "turbo": "^2.5.5"
   },
   "dependencies": {

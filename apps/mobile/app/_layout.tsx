@@ -1,20 +1,6 @@
-import { Stack } from "expo-router";
-import { useFonts } from "expo-font";
-import { useEffect } from "react";
-import "./globals.css"
+import { Stack } from "expo-router/stack";
+import './globals.css'; // Import global styles
 
 export default function RootLayout() {
-  const [fontsLoaded, error] = useFonts({
-    "QuickSand-Bold": require("../assets/fonts/Quicksand-Bold.ttf"),
-    "QuickSand-Medium": require("../assets/fonts/Quicksand-Medium.ttf"),
-    "QuickSand-Regular": require("../assets/fonts/Quicksand-Regular.ttf"),
-    "QuickSand-SemiBold": require("../assets/fonts/Quicksand-SemiBold.ttf"),
-    "QuickSand-Light": require("../assets/fonts/Quicksand-Light.ttf")
-  });
-
-  if (!fontsLoaded && !error) {
-    return null;
-  }
-
   return <Stack />;
 }
