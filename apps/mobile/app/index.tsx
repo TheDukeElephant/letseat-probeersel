@@ -1,7 +1,6 @@
 import { SafeAreaView, Image, Pressable, View, Text, FlatList, TouchableOpacity, ScrollView } from "react-native";
 import { offers } from "@/constants/index";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
-import MultiSlider from "@ptomasroos/react-native-multi-slider";
 import Slider from '@react-native-community/slider';
 import { Fragment, useState, useMemo } from "react";
 
