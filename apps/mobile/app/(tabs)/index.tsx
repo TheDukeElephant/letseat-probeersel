@@ -133,7 +133,7 @@ export default function Index() {
       </View>
 
       {/* Date row */}
-      <TouchableOpacity className="flex-row justify-between items-center bg-white rounded-xl p-4 mb-3 shadow-sm">
+      <TouchableOpacity className="flex-row justify-between items-center bg-white rounded-xl p-4 mb-2 mx-1 shadow-sm">
         <View className="flex-row items-center space-x-3">
           <Ionicons name="calendar-outline" size={18} color="#6b7280" />
           <Text className="text-sm">Delivery date</Text>
@@ -142,7 +142,7 @@ export default function Index() {
       </TouchableOpacity>
 
       {/* Address row */}
-      <TouchableOpacity className="flex-row justify-between items-center bg-white rounded-xl p-4 shadow-sm">
+      <TouchableOpacity className="flex-row justify-between items-center bg-white rounded-xl p-4 mx-1 shadow-sm">
         <View className="flex-row items-center space-x-3">
           <Ionicons name="location-outline" size={18} color="#6b7280" />
           <Text className="text-sm">Van der Burghweg 2</Text>

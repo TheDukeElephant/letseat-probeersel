@@ -12,6 +12,19 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+			letseat: {
+				DEFAULT: "#077bef",
+				50: "#e6f4ff",
+				100: "#cce8ff",
+				200: "#99d1ff",
+				300: "#66baff",
+				400: "#339ff2",
+				500: "#077bef",
+				600: "#0666c9",
+				700: "#05519c",
+				800: "#043c6e",
+				900: "#03274b",
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -19,7 +32,7 @@ module.exports = {
   				foreground: 'hsl(var(--card-foreground))'
   			},
   			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
+  				DEFAULT: "#077bef",
   				foreground: 'hsl(var(--popover-foreground))'
   			},
   			primary: {
