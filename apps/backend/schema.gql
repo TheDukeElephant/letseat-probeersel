@@ -1,0 +1,52 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateUserInput {
+  email: String!
+  name: String!
+  password: String!
+  phone: String
+  role: Role
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  createUser(data: CreateUserInput!): UserModel!
+  deleteUser(id: String!): Boolean!
+  updateUser(data: UpdateUserInput!): UserModel!
+}
+
+type Query {
+  user(id: String!): UserModel
+  users: [UserModel!]!
+}
+
+enum Role {
+  ADMIN
+  RESTAURANT
+  USER
+}
+
+input UpdateUserInput {
+  email: String
+  id: String!
+  name: String
+  password: String
+  phone: String
+  role: Role
+}
+
+type UserModel {
+  createdAt: DateTime!
+  email: String!
+  id: ID!
+  name: String!
+  phone: String
+  role: Role!
+  updatedAt: DateTime!
+}

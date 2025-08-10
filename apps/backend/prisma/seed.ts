@@ -10,7 +10,7 @@ async function main() {
         email: 'demo@letseat.local',
         name: 'Demo User',
         password: 'CHANGE_ME', // TODO: hash in real seed
-  role: 'USER',
+        role: 'USER',
         orders: { create: [] }
       }
     });

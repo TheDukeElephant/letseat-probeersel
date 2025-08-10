@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error','warn','log'] });
   app.setGlobalPrefix('api');
+  app.enableCors({ origin: true, credentials: true });
   // Ensure proper SIGTERM/SIGINT handling (Docker, CTRL+C) to close Prisma connections
   app.enableShutdownHooks();
 

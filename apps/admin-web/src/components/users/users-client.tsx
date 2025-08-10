@@ -21,55 +21,114 @@ export type User = {
   createdAt: string
 }
 
-const mockUsers: User[] = [
-  { id: "U001", name: "Alice Johnson", email: "alice@example.com", phone: "+1 555 0101", role: "customer", createdAt: "2024-06-01" },
-  { id: "U002", name: "Bob Smith", email: "bob@example.com", phone: "+1 555 0102", role: "customer", createdAt: "2024-06-02" },
-  { id: "U003", name: "Carla Gomez", email: "carla@example.com", phone: "+1 555 0103", role: "driver", createdAt: "2024-06-05" },
-  { id: "U004", name: "Dan Lee", email: "dan@example.com", phone: "+1 555 0104", role: "restaurant", createdAt: "2024-06-07" },
-  { id: "U005", name: "Eva Green", email: "eva@example.com", phone: "+1 555 0105", role: "admin", createdAt: "2024-06-10" },
-]
+// GraphQL endpoint: default /graphql (Nest GraphQL route is not prefixed by global prefix in this setup)
+// Allow override via NEXT_PUBLIC_API_URL; fallback tries /api/graphql only if /graphql returns 404/Network error.
+const ENV_API = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+const PRIMARY_API_URL = ENV_API || 'http://localhost:4000/graphql';
+const ALT_API_URL = PRIMARY_API_URL.includes('/api/graphql')
+  ? PRIMARY_API_URL.replace('/api/graphql','/graphql')
+  : PRIMARY_API_URL.replace('/graphql','/api/graphql');
+
+async function postGraphQL(body: any) {
+  const attempt = async (url: string) => {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+  try {
+    return await attempt(PRIMARY_API_URL);
+  } catch (err: any) {
+    // Only fallback on connectivity or 404 issues
+    if (/(HTTP 404)|Failed to fetch|ECONNREFUSED/i.test(err.message)) {
+      return attempt(ALT_API_URL);
+    }
+    throw err;
+  }
+}
 
 export function UsersClient() {
-  const [users, setUsers] = React.useState<User[]>(mockUsers)
+  const [users, setUsers] = React.useState<User[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [editingUser, setEditingUser] = React.useState<User | null>(null)
   const [openEdit, setOpenEdit] = React.useState(false)
   const [openAdd, setOpenAdd] = React.useState(false)
   const [query, setQuery] = React.useState("")
   const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const [submitting, setSubmitting] = React.useState(false)
 
-  function handleSave(e: React.FormEvent<HTMLFormElement>) {
+  async function fetchUsers() {
+    try {
+      setLoading(true)
+  const json = await postGraphQL({ query: `query Users { users { id name email phone role createdAt } }` })
+      if (json.errors) throw new Error(json.errors[0].message)
+      setUsers(json.data.users.map((u: any) => ({ ...u, createdAt: u.createdAt })))
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  React.useEffect(() => { fetchUsers() }, [])
+
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
     const formData = new FormData(form)
-    const updated: User = {
-      id: (formData.get("id") as string) || crypto.randomUUID().slice(0, 6),
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      role: formData.get("role") as string,
-      createdAt: (formData.get("createdAt") as string) || new Date().toISOString().slice(0, 10),
+    const isEdit = !!editingUser?.id
+    const mutation = isEdit ? `mutation UpdateUser($data: UpdateUserInput!){ updateUser(data:$data){ id name email phone role createdAt } }` : `mutation CreateUser($data: CreateUserInput!){ createUser(data:$data){ id name email phone role createdAt } }`
+    const rawRole = formData.get('role') as string | null
+    const role = rawRole ? rawRole.toUpperCase() : undefined
+    const phoneRaw = (formData.get('phone') as string | null) || undefined
+    const phone = phoneRaw && phoneRaw.trim().length === 0 ? undefined : phoneRaw
+    const variables: any = { data: {
+      id: editingUser?.id,
+      name: formData.get('name'),
+      email: formData.get('email'),
+      phone,
+      role,
+      password: isEdit ? undefined : 'TempPass123!'
+    }}
+    if (!isEdit) delete variables.data.id
+    setSubmitting(true)
+    try {
+  const json = await postGraphQL({ query: mutation, variables })
+      if (json.errors) {
+        // Combine multiple GraphQL errors if present
+        const message = json.errors.map((e: any) => e.message).join('; ')
+        throw new Error(message)
+      }
+      toast.success(isEdit ? 'User updated' : 'User added')
+      await fetchUsers()
+      // Only close on success
+      setEditingUser(null)
+      setOpenEdit(false)
+      setOpenAdd(false)
+    } catch (err:any) {
+      toast.error(err.message)
+      // Keep sheet open for correction
     }
-    setUsers(prev => {
-      const exists = prev.find(u => u.id === updated.id)
-      if (exists) return prev.map(u => (u.id === updated.id ? updated : u))
-      return [updated, ...prev]
-    })
-    toast.success(editingUser ? "User updated" : "User added")
-    setEditingUser(null)
-    setOpenEdit(false)
-    setOpenAdd(false)
+    setSubmitting(false)
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!editingUser) return
-    setUsers(prev => prev.filter(u => u.id !== editingUser.id))
-    toast.success("User deleted")
+    try {
+  const json = await postGraphQL({ query: `mutation DeleteUser($id:String!){ deleteUser(id:$id) }`, variables: { id: editingUser.id } })
+      if (json.errors) throw new Error(json.errors[0].message)
+      toast.success('User deleted')
+      await fetchUsers()
+    } catch(e:any) {
+      toast.error(e.message)
+    }
     setConfirmDelete(false)
     setOpenEdit(false)
     setEditingUser(null)
   }
 
-  const roles = ["customer", "driver", "restaurant", "admin"]
+  // Must match backend enum Role
+  const roles = ["USER", "RESTAURANT", "ADMIN"]
 
   const filtered = React.useMemo(() => {
     if (!query.trim()) return users
@@ -125,7 +184,7 @@ export function UsersClient() {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select name="role" defaultValue="customer">
+                    <Select name="role" defaultValue="USER">
                       <SelectTrigger id="role"><SelectValue placeholder="Select role" /></SelectTrigger>
                       <SelectContent>
                         {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -134,7 +193,7 @@ export function UsersClient() {
                   </div>
                 </div>
                 <SheetFooter>
-                  <Button type="submit">Save</Button>
+                  <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save'}</Button>
                   <SheetClose asChild>
                     <Button type="button" variant="outline">Cancel</Button>
                   </SheetClose>
@@ -158,7 +217,13 @@ export function UsersClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(u => (
+            {loading && (
+              <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+            )}
+            {error && !loading && (
+              <TableRow><TableCell colSpan={7} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
+            )}
+            {!loading && !error && filtered.map(u => (
               <TableRow key={u.id} className="hover:bg-muted/30">
                 <TableCell className="font-mono text-xs">{u.id}</TableCell>
                 <TableCell className="font-medium">{u.name}</TableCell>
@@ -194,7 +259,7 @@ export function UsersClient() {
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
-                            <Select name="role" defaultValue={editingUser?.role}>
+                            <Select name="role" defaultValue={editingUser?.role || 'USER'}>
                               <SelectTrigger id="role"><SelectValue placeholder="Select role" /></SelectTrigger>
                               <SelectContent>
                                 {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -218,7 +283,7 @@ export function UsersClient() {
                           </div>
                         </div>
                         <SheetFooter>
-                          <Button type="submit">Save Changes</Button>
+                          <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save Changes'}</Button>
                           <SheetClose asChild>
                             <Button type="button" variant="outline">Close</Button>
                           </SheetClose>
@@ -229,7 +294,7 @@ export function UsersClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {!users.length && (
+            {!loading && !error && !users.length && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No users found.</TableCell>
               </TableRow>
