@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +10,7 @@ async function main() {
         email: 'demo@letseat.local',
         name: 'Demo User',
         password: 'CHANGE_ME', // TODO: hash in real seed
-        role: Role.USER,
+  role: 'USER',
         orders: { create: [] }
       }
     });

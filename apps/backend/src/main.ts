@@ -6,6 +6,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error','warn','log'] });
   app.setGlobalPrefix('api');
+  // Ensure proper SIGTERM/SIGINT handling (Docker, CTRL+C) to close Prisma connections
+  app.enableShutdownHooks();
 
   const config = new DocumentBuilder()
     .setTitle("Let's Eat API")

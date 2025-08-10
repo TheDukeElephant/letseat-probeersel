@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  // Using default output so we can import from '@prisma/client' without fragile relative paths.
 }
 
 datasource db {
