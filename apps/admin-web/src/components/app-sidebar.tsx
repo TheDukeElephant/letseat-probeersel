@@ -27,6 +27,7 @@ const data = {
     { title: "Users", url: "/users", icon: IconUsers },
     { title: "Groups", url: "/groups", icon: IconUserCog },
     { title: "Orders", url: "/orders", icon: IconReceipt2 },
+    { title: "Restaurants", url: "/restaurants", icon: IconReceipt2 },
     { title: "Analytics", url: "/analytics", icon: IconReportAnalytics },
     { title: "Settings", url: "/settings", icon: IconSettings },
   ],

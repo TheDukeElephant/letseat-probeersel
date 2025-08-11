@@ -157,6 +157,7 @@ export default function Index() {
   // ────────────────────────────────────────────────────────────────────────────────
   // Define your non-linear steps
   const BUCKETS = [
+    { label: "1–2",   range: [1, 2] },
     { label: "3–5",   range: [3, 5] },
     { label: "5–10",  range: [5, 10] },
     { label: "10–20", range: [10, 20] },

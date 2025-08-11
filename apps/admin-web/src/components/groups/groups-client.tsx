@@ -33,6 +33,8 @@ export function GroupsClient() {
   const [userSearch, setUserSearch] = React.useState('');
   const [userResults, setUserResults] = React.useState<User[]>([]);
   const [searchingUsers, setSearchingUsers] = React.useState(false);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = React.useState(1);
 
   async function load() {
     setLoading(true);
@@ -65,6 +67,14 @@ export function GroupsClient() {
   }
 
   const filtered = groups.filter(g => g.name.toLowerCase().includes(filter.toLowerCase()));
+  React.useEffect(() => { setPage(1); }, [filter]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const endIdx = Math.min(startIdx + PAGE_SIZE, total);
+  const paged = total > PAGE_SIZE ? filtered.slice(startIdx, endIdx) : filtered;
 
   async function openGroup(g: Group) {
     try {
@@ -139,6 +149,8 @@ export function GroupsClient() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">#</TableHead>
+              <TableHead className="w-[120px]">ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Members</TableHead>
               <TableHead>Created</TableHead>
@@ -146,9 +158,11 @@ export function GroupsClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
-            {!loading && filtered.map(g => (
+            {loading && <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
+            {!loading && paged.map((g, i) => (
               <TableRow key={g.id}>
+                <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
+                <TableCell className="font-mono text-xs truncate max-w-[160px]" title={g.id}>{g.id}</TableCell>
                 <TableCell>{g.name}</TableCell>
                 <TableCell><Badge variant="outline">{g.userCount}</Badge></TableCell>
                 <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
@@ -158,9 +172,27 @@ export function GroupsClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !filtered.length && <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
+            {!loading && !filtered.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
           </TableBody>
         </Table>
+      </div>
+      <div className="pt-2 flex flex-col gap-2 text-sm text-muted-foreground">
+        <div>Showing {total === 0 ? 0 : startIdx + 1}-{endIdx} of {total} group{total === 1 ? '' : 's'}</div>
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center gap-1">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(p => Math.max(1, p-1))}>Prev</Button>
+            {Array.from({ length: totalPages }).slice(0, 10).map((_, idx) => {
+              const p = idx + 1
+              return (
+                <Button key={p} variant={p === currentPage ? 'default' : 'outline'} size="sm" onClick={() => setPage(p)}>
+                  {p}
+                </Button>
+              )
+            })}
+            {totalPages > 10 && <span className="px-2">…</span>}
+            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))}>Next</Button>
+          </div>
+        )}
       </div>
       <Sheet open={openEdit} onOpenChange={(o)=>{ setOpenEdit(o); if(!o) setEditing(null); }}>
         <SheetContent side="right" className="sm:max-w-lg flex flex-col">

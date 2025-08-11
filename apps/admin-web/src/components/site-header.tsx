@@ -41,9 +41,9 @@ export function SiteHeader() {
               target="_blank"
               className="dark:text-foreground flex items-center gap-2"
             >
-              <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3.5 w-3.5" />
               <Image src="/main_logo_with_text_horizontal.svg" alt="Let's Eat" width={240} height={64} className="h-10 w-auto" />
-            </a>
+              <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3.5 w-3.5" />
+              </a>
           </Button>
         </div>
       </div>
