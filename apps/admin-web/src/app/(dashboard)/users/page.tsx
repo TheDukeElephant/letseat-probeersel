@@ -1,6 +1,6 @@
 import { UsersClient } from "@/components/users/users-client"
 
-export const metadata = { title: "Users | Let's Eat Admin" }
+export const metadata = { title: "Let's Eat Admin | Users" }
 
 export default function UsersPage() {
 	return (

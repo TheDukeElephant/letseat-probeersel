@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 type UserLite = { id: string; createdAt: string }
+type GroupLite = { id: string; createdAt: string }
 
 const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/graphql").replace(/\/$/, "")
 
 export function SectionCards() {
   const [users, setUsers] = React.useState<UserLite[] | null>(null)
+  const [groups, setGroups] = React.useState<GroupLite[] | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState<boolean>(false)
 
@@ -22,15 +24,16 @@ export function SectionCards() {
         const res = await fetch(API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: `query UsersLite { users { id createdAt } }` }),
+          body: JSON.stringify({ query: `query DashboardLite { users { id createdAt } groups { id createdAt } }` }),
           cache: 'no-store'
         })
         const json = await res.json()
         if (!isMounted) return
         if (json.errors) throw new Error(json.errors[0]?.message || 'Failed to load users')
-        setUsers(json.data.users)
-      } catch (e: any) {
-        if (isMounted) setError(e.message)
+  setUsers(json.data.users)
+  setGroups(json.data.groups)
+      } catch (e) {
+        if (isMounted) setError((e as Error).message)
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -40,6 +43,7 @@ export function SectionCards() {
   }, [])
 
   const totalUsers = users?.length || 0
+  const totalGroups = groups?.length || 0
   // Monthly growth calculation: compare new users this month vs last month
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -61,6 +65,22 @@ export function SectionCards() {
 
   const growthUp = (growthPct ?? 0) >= 0
   const growthLabel = growthPct === null ? '—' : `${growthUp ? '+' : ''}${growthPct.toFixed(1)}%`
+
+  // Group monthly stats (optional trend similar to users card)
+  let thisMonthGroups = 0, lastMonthGroups = 0
+  if (groups) {
+    for (const g of groups) {
+      const d = new Date(g.createdAt)
+      if (d >= monthStart) thisMonthGroups++
+      else if (d >= lastMonthStart && d <= lastMonthEnd) lastMonthGroups++
+    }
+  }
+  let groupsGrowthPct: number | null = null
+  if (thisMonthGroups === 0 && lastMonthGroups === 0) groupsGrowthPct = 0
+  else if (lastMonthGroups === 0 && thisMonthGroups > 0) groupsGrowthPct = 100
+  else if (lastMonthGroups > 0) groupsGrowthPct = ((thisMonthGroups - lastMonthGroups) / lastMonthGroups) * 100
+  const groupsGrowthUp = (groupsGrowthPct ?? 0) >= 0
+  const groupsGrowthLabel = groupsGrowthPct === null ? '—' : `${groupsGrowthUp ? '+' : ''}${groupsGrowthPct.toFixed(1)}%`
 
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
@@ -122,18 +142,34 @@ export function SectionCards() {
           )}
         </CardFooter>
       </Card>
-      {/* Growth Rate (placeholder static) */}
+      {/* Groups (dynamic) */}
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Growth Rate</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">4.5%</CardTitle>
+          <CardDescription>Groups</CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+            {loading ? '…' : totalGroups.toLocaleString()}
+          </CardTitle>
           <CardAction>
-            <Badge variant="outline"><IconTrendingUp />+4.5%</Badge>
+            <Badge variant="outline">
+              {groupsGrowthUp ? <IconTrendingUp /> : <IconTrendingDown />}
+              {loading ? '…' : groupsGrowthLabel}
+            </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">Steady performance increase <IconTrendingUp className="size-4" /></div>
-          <div className="text-muted-foreground">Meets growth projections</div>
+          {error ? (
+            <div className="text-destructive">{error}</div>
+          ) : (
+            <>
+              <div className="line-clamp-1 flex gap-2 font-medium">
+                {loading ? 'Calculating…' : groupsGrowthUp ? 'Group creation up' : 'Group creation down'}
+                {groupsGrowthUp ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
+              </div>
+              <div className="text-muted-foreground">
+                {`New groups this month: ${thisMonthGroups} (last month: ${lastMonthGroups})`}
+              </div>
+            </>
+          )}
         </CardFooter>
       </Card>
     </div>

@@ -4,6 +4,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { PrismaService } from './prisma/prisma.service';
 import { UsersModule } from './users/users.module';
+import { GroupsModule } from './groups/groups.module';
 
 // Later: AuthModule, OrdersModule, RestaurantsModule, MenusModule, GroupsModule, PaymentsModule
 
@@ -16,7 +17,8 @@ import { UsersModule } from './users/users.module';
       playground: true,
       context: ({ req }) => ({ req }),
     }),
-    UsersModule,
+  UsersModule,
+  GroupsModule,
   ],
   controllers: [],
   providers: [PrismaService],

@@ -3,7 +3,7 @@ import { ChartOrders } from "@/components/chart-orders"
 import { SectionCards } from "@/components/section-cards"
 
 export const metadata = {
-  title: "Overview | Let's Eat Admin",
+  title: "Let's Eat Admin | Overview",
 }
 
 export default function OverviewPage() {

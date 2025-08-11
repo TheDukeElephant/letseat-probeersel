@@ -17,4 +17,7 @@ export class CreateUserInput {
 
   @Field()
   password: string; // plain text; will hash
+
+  @Field(() => [String], { nullable: true })
+  groupIds?: string[];
 }

@@ -59,10 +59,11 @@ model User {
   email     String   @unique
   name      String
   phone     String?
-  password  String
   role      Role     @default(USER)
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  groups    Group[]        // ADD relation
 
   // relations
   orders    Order[]
@@ -100,6 +101,13 @@ model Driver {
 
   // relations
   deliveries Delivery[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  users     User[]
 }
 
 /* -------------------------------------------------- *

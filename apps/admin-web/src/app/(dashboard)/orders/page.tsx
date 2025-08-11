@@ -1,6 +1,6 @@
 // Layout handled by (dashboard)/layout.tsx
 
-export const metadata = { title: "Orders | Let's Eat Admin" }
+export const metadata = { title: "Let's Eat Admin | Orders" }
 
 export default function OrdersPage() {
   return (

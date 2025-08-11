@@ -4,6 +4,7 @@
 
 input CreateUserInput {
   email: String!
+  groupIds: [String!]
   name: String!
   password: String!
   phone: String
@@ -15,13 +16,28 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type GroupModel {
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  userCount: Float!
+  users: [UserModel!]
+}
+
 type Mutation {
+  addUserToGroup(groupId: String!, userId: String!): GroupModel!
+  createGroup(name: String!): GroupModel!
   createUser(data: CreateUserInput!): UserModel!
+  deleteGroup(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
+  removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
+  updateGroup(id: String!, name: String!): GroupModel!
   updateUser(data: UpdateUserInput!): UserModel!
 }
 
 type Query {
+  group(id: String!): GroupModel
+  groups: [GroupModel!]!
   user(id: String!): UserModel
   users: [UserModel!]!
 }
@@ -34,6 +50,7 @@ enum Role {
 
 input UpdateUserInput {
   email: String
+  groupIds: [String!]
   id: String!
   name: String
   password: String
@@ -44,6 +61,7 @@ input UpdateUserInput {
 type UserModel {
   createdAt: DateTime!
   email: String!
+  groups: [GroupModel!]
   id: ID!
   name: String!
   phone: String

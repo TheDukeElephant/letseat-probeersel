@@ -1,6 +1,6 @@
 // Layout handled by (dashboard)/layout.tsx
 
-export const metadata = { title: "Analytics | Let's Eat Admin" }
+export const metadata = { title: "Let's Eat Admin | Analytics" }
 
 export default function AnalyticsPage() {
   return (

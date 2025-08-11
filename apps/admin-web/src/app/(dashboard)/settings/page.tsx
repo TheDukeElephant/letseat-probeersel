@@ -1,6 +1,6 @@
 // Layout handled by (dashboard)/layout.tsx
 
-export const metadata = { title: "Settings | Let's Eat Admin" }
+export const metadata = { title: "Let's Eat Admin | Settings" }
 
 export default function SettingsPage() {
   return (

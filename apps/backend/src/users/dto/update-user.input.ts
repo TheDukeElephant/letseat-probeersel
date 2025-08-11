@@ -12,4 +12,7 @@ export class UpdateUserInput extends PartialType(CreateUserInput) {
 
   @Field({ nullable: true })
   password?: string;
+
+  @Field(() => [String], { nullable: true })
+  groupIds?: string[];
 }

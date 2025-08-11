@@ -1,5 +1,6 @@
 import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Role } from '@prisma/client';
+import { GroupModel } from '../../groups/models/group.model';
 
 registerEnumType(Role, { name: 'Role' });
 
@@ -25,4 +26,7 @@ export class UserModel {
 
   @Field()
   updatedAt: Date;
+
+  @Field(() => [GroupModel], { nullable: true })
+  groups?: GroupModel[];
 }
