@@ -56,6 +56,8 @@ export function UsersClient() {
   const [query, setQuery] = React.useState("")
   const [confirmDelete, setConfirmDelete] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
+  const PAGE_SIZE = 50
+  const [page, setPage] = React.useState(1)
 
   async function fetchUsers() {
     try {
@@ -71,6 +73,8 @@ export function UsersClient() {
   }
 
   React.useEffect(() => { fetchUsers() }, [])
+  // Reset to first page when search query changes
+  React.useEffect(() => { setPage(1) }, [query])
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -142,6 +146,43 @@ export function UsersClient() {
     )
   }, [users, query])
 
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const startIdx = (currentPage - 1) * PAGE_SIZE
+  const endIdx = Math.min(startIdx + PAGE_SIZE, total)
+  const paged = total > PAGE_SIZE ? filtered.slice(startIdx, endIdx) : filtered
+
+  function handleExportCsv() {
+    // Export currently filtered (not just current page) for flexibility
+    const headers = ['#','ID','Name','Email','Phone','Role','CreatedAt']
+    const rows = filtered.map((u, i) => [
+      (i+1).toString(),
+      u.id,
+      u.name,
+      u.email,
+      u.phone || '',
+      u.role,
+      new Date(u.createdAt).toISOString()
+    ])
+    const csv = [headers, ...rows].map(r => r.map(field => {
+      if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+        return '"' + field.replace(/"/g,'""') + '"'
+      }
+      return field
+    }).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'users-export.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('CSV exported')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -201,12 +242,14 @@ export function UsersClient() {
               </form>
             </SheetContent>
           </Sheet>
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>Export CSV</Button>
         </div>
       </div>
       <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
+              <TableHead className="w-[40px]">#</TableHead>
               <TableHead className="w-[70px]">ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
@@ -223,8 +266,9 @@ export function UsersClient() {
             {error && !loading && (
               <TableRow><TableCell colSpan={7} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
             )}
-            {!loading && !error && filtered.map(u => (
+      {!loading && !error && paged.map((u, i) => (
               <TableRow key={u.id} className="hover:bg-muted/30">
+        <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
                 <TableCell className="font-mono text-xs">{u.id}</TableCell>
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell>{u.email}</TableCell>
@@ -301,6 +345,24 @@ export function UsersClient() {
             )}
           </TableBody>
         </Table>
+      </div>
+      <div className="pt-2 flex flex-col gap-2 text-sm text-muted-foreground">
+        <div>Showing {total === 0 ? 0 : startIdx + 1}-{endIdx} of {total} user{total === 1 ? '' : 's'}</div>
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center gap-1">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(p => Math.max(1, p-1))}>Prev</Button>
+            {Array.from({ length: totalPages }).slice(0, 10).map((_, idx) => {
+              const p = idx + 1
+              return (
+                <Button key={p} variant={p === currentPage ? 'default' : 'outline'} size="sm" onClick={() => setPage(p)}>
+                  {p}
+                </Button>
+              )
+            })}
+            {totalPages > 10 && <span className="px-2">…</span>}
+            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))}>Next</Button>
+          </div>
+        )}
       </div>
     </div>
   )

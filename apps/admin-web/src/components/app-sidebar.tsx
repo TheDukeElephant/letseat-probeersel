@@ -1,16 +1,8 @@
 "use client"
 
 import * as React from "react"
-import {
-  IconChartBar,
-  IconDashboard,
-  IconInnerShadowTop,
-  IconSettings,
-  IconUsers,
-  IconReceipt2,
-  IconUserCog,
-  IconReportAnalytics,
-} from "@tabler/icons-react"
+import { IconDashboard, IconSettings, IconUsers, IconReceipt2, IconUserCog, IconReportAnalytics } from "@tabler/icons-react"
+import Image from "next/image"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -46,13 +38,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Let's Eat</span>
+            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-2">
+              <a href="/overview" className="flex items-center gap-2">
+                <Image
+                  src="/main_logo_with_text_horizontal.svg"
+                  alt="Let's Eat"
+                  width={300}
+                  height={60}
+                  priority
+                  className="h-14 w-auto"
+                />
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
