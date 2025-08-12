@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { IconEdit, IconPlus, IconTrash, IconSearch } from '@tabler/icons-react';
+import { IconEdit, IconPlus, IconTrash, IconSearch, IconArrowsSort, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
 interface Group { id: string; name: string; createdAt: string; userCount: number; adminCount?: number; users?: { id: string; name: string; email: string }[]; admins?: { id: string }[] }
@@ -40,6 +40,28 @@ export function GroupsClient() {
   const [draftAdminIds, setDraftAdminIds] = React.useState<Set<string>>(new Set());
   const PAGE_SIZE = 50;
   const [page, setPage] = React.useState(1);
+  type SortKey = 'id' | 'name' | 'members' | 'admins' | 'created';
+  const [sortKey, setSortKey] = React.useState<SortKey>('created');
+  const [sortDir, setSortDir] = React.useState<'asc'|'desc'>('desc');
+
+  function adminCountOf(g: Group) { return g.adminCount ?? (g as any).admins?.length ?? 0 }
+  function onSortClick(k: SortKey) {
+    setPage(1);
+    setSortKey(prev => {
+      if (prev === k) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
+      setSortDir('asc');
+      return k;
+    });
+  }
+  function SortHeader({ label, k }: { label: string; k: SortKey }) {
+    const active = sortKey === k;
+    return (
+      <button type="button" onClick={() => onSortClick(k)} className={`flex items-center gap-1 select-none ${active ? 'text-foreground' : 'text-foreground/80'} hover:text-foreground`}>
+        <span>{label}</span>
+        {active ? (sortDir === 'asc' ? <IconChevronUp className="size-3.5" /> : <IconChevronDown className="size-3.5" />) : <IconArrowsSort className="size-3.5" />}
+      </button>
+    );
+  }
 
   async function load() {
     setLoading(true);
@@ -74,12 +96,31 @@ export function GroupsClient() {
   const filtered = groups.filter(g => g.name.toLowerCase().includes(filter.toLowerCase()));
   React.useEffect(() => { setPage(1); }, [filter]);
 
-  const total = filtered.length;
+  const sorted = React.useMemo(() => {
+    const list = [...filtered];
+    list.sort((a, b) => {
+      let va: string | number = '';
+      let vb: string | number = '';
+      switch (sortKey) {
+        case 'id': va = a.id; vb = b.id; break;
+        case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
+        case 'members': va = a.userCount; vb = b.userCount; break;
+        case 'admins': va = adminCountOf(a); vb = adminCountOf(b); break;
+        case 'created': va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); break;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [filtered, sortKey, sortDir]);
+
+  const total = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const startIdx = (currentPage - 1) * PAGE_SIZE;
   const endIdx = Math.min(startIdx + PAGE_SIZE, total);
-  const paged = total > PAGE_SIZE ? filtered.slice(startIdx, endIdx) : filtered;
+  const paged = total > PAGE_SIZE ? sorted.slice(startIdx, endIdx) : sorted;
 
   async function openGroup(g: Group) {
     try {
@@ -211,30 +252,38 @@ export function GroupsClient() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[40px]">#</TableHead>
-              <TableHead className="w-[120px]">ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Members</TableHead>
-              <TableHead>Admins</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="w-[120px]"><SortHeader label="ID" k="id" /></TableHead>
+              <TableHead><SortHeader label="Name" k="name" /></TableHead>
+              <TableHead><SortHeader label="Members #" k="members" /></TableHead>
+              <TableHead><SortHeader label="Admins #" k="admins" /></TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead><SortHeader label="Created" k="created" /></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
+            {loading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
             {!loading && paged.map((g, i) => (
               <TableRow key={g.id}>
                 <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
                 <TableCell className="font-mono text-xs truncate max-w-[160px]" title={g.id}>{g.id}</TableCell>
                 <TableCell>{g.name}</TableCell>
                 <TableCell><Badge variant="outline">{g.userCount}</Badge></TableCell>
-                <TableCell><Badge variant="secondary">{g.adminCount ?? (g as any).admins?.length ?? 0}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{adminCountOf(g)}</Badge></TableCell>
+                <TableCell>
+                  {adminCountOf(g) > 0 ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">Active</Badge>
+                  ) : (
+                    <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-500/10 dark:text-red-300">Inactive</Badge>
+                  )}
+                </TableCell>
                 <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => openGroup(g)}><IconEdit className="size-4" />Edit</Button>
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !filtered.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
+            {!loading && !sorted.length && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

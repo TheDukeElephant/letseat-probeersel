@@ -312,7 +312,15 @@ export function UsersClient() {
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>{u.phone}</TableCell>
-                <TableCell><Badge variant="outline" className="capitalize">{u.role}</Badge></TableCell>
+                <TableCell>
+                  {u.role === 'ADMIN' ? (
+                    <Badge className="capitalize bg-red-100 text-red-800 border-red-200 dark:bg-red-500/10 dark:text-red-300">{u.role}</Badge>
+                  ) : u.role === 'RESTAURANT' ? (
+                    <Badge className="capitalize bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300">{u.role}</Badge>
+                  ) : (
+                    <Badge className="capitalize bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">{u.role}</Badge>
+                  )}
+                </TableCell>
                 <TableCell className="space-x-1">
                   {u.groups?.slice(0,3).map(g => <Badge key={g.id} variant="outline">{g.name}</Badge>)}
                   {u.groups && u.groups.length > 3 && <Badge variant="secondary">+{u.groups.length - 3}</Badge>}
