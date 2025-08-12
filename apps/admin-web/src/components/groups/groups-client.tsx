@@ -33,6 +33,7 @@ export function GroupsClient() {
   const [userSearch, setUserSearch] = React.useState('');
   const [userResults, setUserResults] = React.useState<User[]>([]);
   const [searchingUsers, setSearchingUsers] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   // Draft state for modal editing
   const [draftName, setDraftName] = React.useState('');
   const [draftMembers, setDraftMembers] = React.useState<User[]>([]);
@@ -182,6 +183,20 @@ export function GroupsClient() {
     });
   }
 
+  async function handleDeleteGroup() {
+    if (!editing) return;
+    try {
+      await gql('mutation($id:String!){ deleteGroup(id:$id) }', { id: editing.id });
+      toast.success('Group deleted');
+      setGroups(gs => gs.filter(g => g.id !== editing.id));
+      setConfirmDelete(false);
+      setOpenEdit(false);
+      setEditing(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleAdd} className="flex flex-col gap-4 md:flex-row md:items-end">
@@ -216,7 +231,6 @@ export function GroupsClient() {
                 <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => openGroup(g)}><IconEdit className="size-4" />Edit</Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(g.id)}><IconTrash className="size-4" /></Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -242,7 +256,7 @@ export function GroupsClient() {
           </div>
         )}
       </div>
-      <Dialog open={openEdit} onOpenChange={(o)=>{ setOpenEdit(o); if(!o){ setEditing(null); } }}>
+  <Dialog open={openEdit} onOpenChange={(o)=>{ setOpenEdit(o); if(!o){ setEditing(null); setConfirmDelete(false); } }}>
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleSaveEdit} className="flex flex-col">
             <DialogHeader>
@@ -302,6 +316,20 @@ export function GroupsClient() {
                   </div>
                 )}
               </div>
+            </div>
+            <div className="mb-4 space-y-2">
+              <Button type="button" variant="destructive" className="w-full gap-2" onClick={() => setConfirmDelete(true)}>
+                <IconTrash className="size-4" /> Delete Group
+              </Button>
+              {confirmDelete && (
+                <div className="rounded-md border p-3 text-sm space-y-3">
+                  <p className="font-medium">Are you sure you want to delete this group?</p>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="destructive" onClick={handleDeleteGroup}>Yes, delete</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter className="gap-2">
               <Button type="submit" disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save Changes'}</Button>
