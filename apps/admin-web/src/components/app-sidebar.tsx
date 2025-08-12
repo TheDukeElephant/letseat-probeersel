@@ -28,6 +28,7 @@ const data = {
     { title: "Groups", url: "/groups", icon: IconUserCog },
     { title: "Orders", url: "/orders", icon: IconReceipt2 },
     { title: "Restaurants", url: "/restaurants", icon: IconReceipt2 },
+    { title: "Invoices", url: "/invoices", icon: IconReceipt2 },
     { title: "Analytics", url: "/analytics", icon: IconReportAnalytics },
     { title: "Settings", url: "/settings", icon: IconSettings },
   ],

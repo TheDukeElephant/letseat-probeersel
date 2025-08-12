@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -60,7 +60,6 @@ export function UsersClient() {
   const [submitting, setSubmitting] = React.useState(false)
   const [groups, setGroups] = React.useState<{id:string; name:string}[]>([])
   const [groupsLoading, setGroupsLoading] = React.useState(false)
-  const [newGroupName, setNewGroupName] = React.useState("")
   const [groupSearch, setGroupSearch] = React.useState("")
   const PAGE_SIZE = 50
   const [page, setPage] = React.useState(1)
@@ -213,18 +212,18 @@ export function UsersClient() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Sheet open={openAdd} onOpenChange={setOpenAdd}>
-            <SheetTrigger asChild>
+          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+            <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <IconPlus className="size-4" /> Add User
               </Button>
-            </SheetTrigger>
-            <SheetContent className="sm:max-w-lg" side="right">
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
               <form onSubmit={handleSave} className="flex flex-col h-full">
-                <SheetHeader>
-                  <SheetTitle>Add User</SheetTitle>
-                </SheetHeader>
-                <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+                <DialogHeader>
+                  <DialogTitle>Add User</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-1 flex-col gap-4 overflow-y-auto pb-2">
                   <div className="grid gap-2">
                     <Label htmlFor="name">Name</Label>
                     <Input id="name" name="name" required />
@@ -259,21 +258,18 @@ export function UsersClient() {
                       {!groupsLoading && !groups.length && <div className="text-xs text-muted-foreground">No groups</div>}
                     </div>
                     <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
-                    <form onSubmit={(e)=>{ e.preventDefault(); const n=newGroupName.trim(); if(!n) return; postGraphQL({ query:`mutation($n:String!){ createGroup(name:$n){ id name } }`, variables:{ n } }).then(()=>{ setNewGroupName(''); fetchGroups(); toast.success('Group created');}); }} className="flex gap-2">
-                      <Input placeholder="New group" value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
-                      <Button type="submit" variant="outline" size="sm">Add</Button>
-                    </form>
+                    <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
                   </div>
                 </div>
-                <SheetFooter>
+                <DialogFooter>
                   <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save'}</Button>
-                  <SheetClose asChild>
+                  <DialogClose asChild>
                     <Button type="button" variant="outline">Cancel</Button>
-                  </SheetClose>
-                </SheetFooter>
+                  </DialogClose>
+                </DialogFooter>
               </form>
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="sm" onClick={handleExportCsv}>Export CSV</Button>
         </div>
       </div>
@@ -313,18 +309,18 @@ export function UsersClient() {
                 </TableCell>
                 <TableCell>{new Date(u.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
-                  <Sheet open={openEdit && editingUser?.id === u.id} onOpenChange={(o) => { setOpenEdit(o); if(!o){ setEditingUser(null); setConfirmDelete(false);} }}>
-                    <SheetTrigger asChild>
+                  <Dialog open={openEdit && editingUser?.id === u.id} onOpenChange={(o) => { setOpenEdit(o); if(!o){ setEditingUser(null); setConfirmDelete(false);} }}>
+                    <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="gap-1" onClick={() => { setEditingUser(u); }}>
                         <IconEdit className="size-4" /> Edit
                       </Button>
-                    </SheetTrigger>
-                    <SheetContent className="sm:max-w-lg" side="right">
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
                       <form onSubmit={handleSave} className="flex flex-col h-full">
-                        <SheetHeader>
-                          <SheetTitle>Edit User</SheetTitle>
-                        </SheetHeader>
-                        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+                        <DialogHeader>
+                          <DialogTitle>Edit User</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex flex-1 flex-col gap-4 overflow-y-auto pb-2">
                           <input type="hidden" name="id" value={editingUser?.id} />
                           <div className="grid gap-2">
                             <Label htmlFor="name">Name</Label>
@@ -363,10 +359,7 @@ export function UsersClient() {
                               {!groupsLoading && !groups.length && <div className="text-xs text-muted-foreground">No groups</div>}
                             </div>
                             <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
-                            <form onSubmit={(e)=>{ e.preventDefault(); const n=newGroupName.trim(); if(!n) return; postGraphQL({ query:`mutation($n:String!){ createGroup(name:$n){ id name } }`, variables:{ n } }).then(()=>{ setNewGroupName(''); fetchGroups(); toast.success('Group created');}); }} className="flex gap-2">
-                              <Input placeholder="New group" value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
-                              <Button type="submit" variant="outline" size="sm">Add</Button>
-                            </form>
+                            <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
                           </div>
                           <Separator />
                           <div className="space-y-2">
@@ -384,15 +377,15 @@ export function UsersClient() {
                             )}
                           </div>
                         </div>
-                        <SheetFooter>
+                        <DialogFooter>
                           <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save Changes'}</Button>
-                          <SheetClose asChild>
+                          <DialogClose asChild>
                             <Button type="button" variant="outline">Close</Button>
-                          </SheetClose>
-                        </SheetFooter>
+                          </DialogClose>
+                        </DialogFooter>
                       </form>
-                    </SheetContent>
-                  </Sheet>
+                    </DialogContent>
+                  </Dialog>
                 </TableCell>
               </TableRow>
             ))}

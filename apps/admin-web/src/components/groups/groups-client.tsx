@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { IconEdit, IconPlus, IconTrash, IconSearch } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -33,6 +33,10 @@ export function GroupsClient() {
   const [userSearch, setUserSearch] = React.useState('');
   const [userResults, setUserResults] = React.useState<User[]>([]);
   const [searchingUsers, setSearchingUsers] = React.useState(false);
+  // Draft state for modal editing
+  const [draftName, setDraftName] = React.useState('');
+  const [draftMembers, setDraftMembers] = React.useState<User[]>([]);
+  const [draftAdminIds, setDraftAdminIds] = React.useState<Set<string>>(new Set());
   const PAGE_SIZE = 50;
   const [page, setPage] = React.useState(1);
 
@@ -78,28 +82,68 @@ export function GroupsClient() {
 
   async function openGroup(g: Group) {
     try {
-  const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount adminCount users { id name email } admins { id } } }', { id: g.id });
+      const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount adminCount users { id name email } admins { id } } }', { id: g.id });
       setEditing(data.group);
+      // initialize draft from loaded group
+      setDraftName(data.group.name);
+      setDraftMembers(data.group.users || []);
+      setDraftAdminIds(new Set((data.group.admins || []).map(a => a.id)));
       setOpenEdit(true);
       setUserSearch('');
       setUserResults([]);
     } catch (e) { toast.error((e as Error).message); }
   }
 
-  async function handleRename(e: React.FormEvent) {
+  async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
     setSavingEdit(true);
     try {
-  const data = await gql<{ updateGroup: Group }>('mutation($id:String!,$n:String!){ updateGroup(id:$id,name:$n){ id name userCount adminCount } }', { id: editing.id, n: editing.name });
-      toast.success('Group updated');
-      setGroups(gs => gs.map(g => g.id === data.updateGroup.id ? { ...g, name: data.updateGroup.name } : g));
-  // Update local editing state then close sheet
-  setEditing(ed => ed ? { ...ed, name: data.updateGroup.name, userCount: data.updateGroup.userCount, adminCount: data.updateGroup.adminCount } : ed);
-  setOpenEdit(false);
-  // Optionally refresh full list to ensure counts remain accurate
-  load();
-    } catch(e){ toast.error((e as Error).message); } finally { setSavingEdit(false); }
+      // Compute diffs
+      const origMemberIds = new Set((editing.users || []).map(u => u.id));
+      const draftMemberIds = new Set(draftMembers.map(u => u.id));
+      const toAdd = Array.from(draftMemberIds).filter(id => !origMemberIds.has(id));
+      const toRemove = Array.from(origMemberIds).filter(id => !draftMemberIds.has(id));
+
+      const origAdminIds = new Set((editing.admins || []).map(a => a.id));
+      const draftAdmins = draftAdminIds;
+      const adminAdds = Array.from(draftAdmins).filter(id => !origAdminIds.has(id));
+      const adminRemoves = Array.from(origAdminIds).filter(id => !draftAdmins.has(id));
+
+      // 1) Update name if changed
+      if (draftName.trim() && draftName.trim() !== editing.name) {
+        await gql<{ updateGroup: Group }>('mutation($id:String!,$n:String!){ updateGroup(id:$id,name:$n){ id name } }', { id: editing.id, n: draftName.trim() });
+      }
+
+      // 2) Add members first
+      for (const userId of toAdd) {
+        await gql('mutation($g:String!,$u:String!){ addUserToGroup(groupId:$g,userId:$u){ id } }', { g: editing.id, u: userId });
+      }
+
+      // 3) Add admins next (to satisfy last-admin guard)
+      for (const userId of adminAdds) {
+        await gql('mutation($g:String!,$u:String!){ addGroupAdmin(groupId:$g,userId:$u){ id } }', { g: editing.id, u: userId });
+      }
+
+      // 4) Remove admins
+      for (const userId of adminRemoves) {
+        await gql('mutation($g:String!,$u:String!){ removeGroupAdmin(groupId:$g,userId:$u){ id } }', { g: editing.id, u: userId });
+      }
+
+      // 5) Remove members last
+      for (const userId of toRemove) {
+        await gql('mutation($g:String!,$u:String!){ removeUserFromGroup(groupId:$g,userId:$u){ id } }', { g: editing.id, u: userId });
+      }
+
+      toast.success('Group saved');
+      setOpenEdit(false);
+      setEditing(null);
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function searchUsers(q: string) {
@@ -107,52 +151,35 @@ export function GroupsClient() {
     if (!q.trim()) { setUserResults([]); return; }
     setSearchingUsers(true);
     try {
-      const data = await gql<{ users: User[] }>('query { users { id name email } }');
-      const list = data.users.filter(u => u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()));
-      // Exclude already members
-      setUserResults(list.filter(u => !editing?.users?.some(m => m.id === u.id)).slice(0,20));
+  const data = await gql<{ users: User[] }>('query { users { id name email } }');
+  const list = data.users.filter(u => u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()));
+  // Exclude already selected members in draft
+  setUserResults(list.filter(u => !draftMembers.some(m => m.id === u.id)).slice(0,20));
     } catch(e){ toast.error((e as Error).message);} finally { setSearchingUsers(false); }
   }
 
-  async function addUserToGroup(userId: string) {
-    if (!editing) return;
-    try {
-  const data = await gql<{ addUserToGroup: Group }>('mutation($g:String!,$u:String!){ addUserToGroup(groupId:$g,userId:$u){ id users { id name email } userCount adminCount name createdAt } }', { g: editing.id, u: userId });
-      setEditing(data.addUserToGroup);
-  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.addUserToGroup.userCount, adminCount: data.addUserToGroup.adminCount } : g));
-      toast.success('User added');
-      setUserResults(r => r.filter(u => u.id !== userId));
-    } catch(e){ toast.error((e as Error).message); }
+  function addUserToDraft(user: User) {
+    // no-op if already a member
+    if (draftMembers.some(m => m.id === user.id)) return;
+    setDraftMembers(m => [...m, user]);
+    setUserResults(r => r.filter(u => u.id !== user.id));
   }
 
-  async function removeUserFromGroup(userId: string) {
-    if (!editing) return;
-    if (!confirm('Remove this user from group?')) return;
-    try {
-  const data = await gql<{ removeUserFromGroup: Group }>('mutation($g:String!,$u:String!){ removeUserFromGroup(groupId:$g,userId:$u){ id users { id name email } userCount adminCount name createdAt } }', { g: editing.id, u: userId });
-      setEditing(data.removeUserFromGroup);
-  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.removeUserFromGroup.userCount, adminCount: data.removeUserFromGroup.adminCount } : g));
-      toast.success('User removed');
-    } catch(e){ toast.error((e as Error).message); }
+  function removeUserFromDraft(userId: string) {
+    setDraftMembers(m => m.filter(u => u.id !== userId));
+    setDraftAdminIds(ids => { const next = new Set(ids); next.delete(userId); return next; });
   }
 
   function isAdmin(userId: string): boolean {
-    return !!editing?.admins?.some(a => a.id === userId)
+    return draftAdminIds.has(userId)
   }
 
-  async function toggleAdmin(userId: string) {
-    if (!editing) return
-    const makeAdmin = !isAdmin(userId)
-    try {
-      const mut = makeAdmin
-  ? 'mutation($g:String!,$u:String!){ addGroupAdmin(groupId:$g,userId:$u){ id admins { id } users { id name email } userCount adminCount name createdAt } }'
-  : 'mutation($g:String!,$u:String!){ removeGroupAdmin(groupId:$g,userId:$u){ id admins { id } users { id name email } userCount adminCount name createdAt } }'
-      const data = await gql<{ addGroupAdmin?: Group; removeGroupAdmin?: Group }>(mut, { g: editing.id, u: userId })
-      const updated = (data.addGroupAdmin || data.removeGroupAdmin) as Group
-  setEditing(updated)
-  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, adminCount: updated.adminCount } : g))
-      toast.success(makeAdmin ? 'Admin added' : 'Admin removed')
-    } catch(e){ toast.error((e as Error).message) }
+  function toggleAdmin(userId: string) {
+    setDraftAdminIds(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId); else next.add(userId);
+      return next;
+    });
   }
 
   return (
@@ -215,23 +242,23 @@ export function GroupsClient() {
           </div>
         )}
       </div>
-      <Sheet open={openEdit} onOpenChange={(o)=>{ setOpenEdit(o); if(!o) setEditing(null); }}>
-        <SheetContent side="right" className="sm:max-w-lg flex flex-col">
-          <form onSubmit={handleRename} className="flex flex-col h-full">
-            <SheetHeader>
-              <SheetTitle>Edit Group</SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2">
+      <Dialog open={openEdit} onOpenChange={(o)=>{ setOpenEdit(o); if(!o){ setEditing(null); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleSaveEdit} className="flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Edit Group</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto space-y-6 py-2 pr-1">
               <div className="space-y-2 px-1">
                 <label className="text-sm font-medium">Group Name</label>
-                <Input value={editing?.name || ''} onChange={(e)=> setEditing(ed => ed ? { ...ed, name: e.target.value } : ed)} />
+                <Input value={draftName} onChange={(e)=> setDraftName(e.target.value)} />
               </div>
               <div className="space-y-2 px-1">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Members ({editing?.userCount ?? 0})</h4>
+                  <h4 className="font-medium">Members ({draftMembers.length})</h4>
                 </div>
                 <div className="rounded border p-2 max-h-60 overflow-auto space-y-2 text-sm">
-                  {editing?.users?.length ? editing.users.map(u => (
+                  {draftMembers.length ? draftMembers.map(u => (
                     <div key={u.id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{u.name}</div>
@@ -242,7 +269,7 @@ export function GroupsClient() {
                         <Button type="button" size="sm" variant="outline" onClick={()=>toggleAdmin(u.id)}>
                           {isAdmin(u.id) ? 'Demote' : 'Promote'}
                         </Button>
-                        <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={()=>removeUserFromGroup(u.id)}>
+                        <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={()=>removeUserFromDraft(u.id)}>
                           <IconTrash className="size-4" />
                         </Button>
                       </div>
@@ -267,7 +294,7 @@ export function GroupsClient() {
                           <div className="truncate font-medium">{u.name}</div>
                           <div className="truncate text-xs text-muted-foreground">{u.email}</div>
                         </div>
-                        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={()=> addUserToGroup(u.id)}>
+                        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={()=> addUserToDraft(u)}>
                           <IconPlus className="size-4" /> Add
                         </Button>
                       </div>
@@ -276,15 +303,15 @@ export function GroupsClient() {
                 )}
               </div>
             </div>
-            <SheetFooter className="gap-2">
+            <DialogFooter className="gap-2">
               <Button type="submit" disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save Changes'}</Button>
-              <SheetClose asChild>
+              <DialogClose asChild>
                 <Button type="button" variant="outline">Close</Button>
-              </SheetClose>
-            </SheetFooter>
+              </DialogClose>
+            </DialogFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
