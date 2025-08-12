@@ -17,6 +17,8 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type GroupModel {
+  adminCount: Float!
+  admins: [UserModel!]
   createdAt: DateTime!
   id: ID!
   name: String!
@@ -25,11 +27,13 @@ type GroupModel {
 }
 
 type Mutation {
+  addGroupAdmin(groupId: String!, userId: String!): GroupModel!
   addUserToGroup(groupId: String!, userId: String!): GroupModel!
   createGroup(name: String!): GroupModel!
   createUser(data: CreateUserInput!): UserModel!
   deleteGroup(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
+  removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
   updateGroup(id: String!, name: String!): GroupModel!
   updateUser(data: UpdateUserInput!): UserModel!

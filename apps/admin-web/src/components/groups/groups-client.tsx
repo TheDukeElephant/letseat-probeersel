@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { IconEdit, IconPlus, IconTrash, IconSearch } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
-interface Group { id: string; name: string; createdAt: string; userCount: number; users?: { id: string; name: string; email: string }[] }
+interface Group { id: string; name: string; createdAt: string; userCount: number; adminCount?: number; users?: { id: string; name: string; email: string }[]; admins?: { id: string }[] }
 interface User { id: string; name: string; email: string }
 
 const API = (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:4000') + '/graphql';
@@ -39,7 +39,7 @@ export function GroupsClient() {
   async function load() {
     setLoading(true);
     try {
-  const data = await gql<{ groups: Group[] }>('query { groups { id name createdAt userCount } }');
+  const data = await gql<{ groups: Group[] }>('query { groups { id name createdAt userCount adminCount } }');
       setGroups(data.groups);
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
   }
@@ -78,7 +78,7 @@ export function GroupsClient() {
 
   async function openGroup(g: Group) {
     try {
-      const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount users { id name email } } }', { id: g.id });
+  const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount adminCount users { id name email } admins { id } } }', { id: g.id });
       setEditing(data.group);
       setOpenEdit(true);
       setUserSearch('');
@@ -91,11 +91,11 @@ export function GroupsClient() {
     if (!editing) return;
     setSavingEdit(true);
     try {
-      const data = await gql<{ updateGroup: Group }>('mutation($id:String!,$n:String!){ updateGroup(id:$id,name:$n){ id name userCount } }', { id: editing.id, n: editing.name });
+  const data = await gql<{ updateGroup: Group }>('mutation($id:String!,$n:String!){ updateGroup(id:$id,name:$n){ id name userCount adminCount } }', { id: editing.id, n: editing.name });
       toast.success('Group updated');
       setGroups(gs => gs.map(g => g.id === data.updateGroup.id ? { ...g, name: data.updateGroup.name } : g));
   // Update local editing state then close sheet
-  setEditing(ed => ed ? { ...ed, name: data.updateGroup.name, userCount: data.updateGroup.userCount } : ed);
+  setEditing(ed => ed ? { ...ed, name: data.updateGroup.name, userCount: data.updateGroup.userCount, adminCount: data.updateGroup.adminCount } : ed);
   setOpenEdit(false);
   // Optionally refresh full list to ensure counts remain accurate
   load();
@@ -117,9 +117,9 @@ export function GroupsClient() {
   async function addUserToGroup(userId: string) {
     if (!editing) return;
     try {
-      const data = await gql<{ addUserToGroup: Group }>('mutation($g:String!,$u:String!){ addUserToGroup(groupId:$g,userId:$u){ id users { id name email } userCount name createdAt } }', { g: editing.id, u: userId });
+  const data = await gql<{ addUserToGroup: Group }>('mutation($g:String!,$u:String!){ addUserToGroup(groupId:$g,userId:$u){ id users { id name email } userCount adminCount name createdAt } }', { g: editing.id, u: userId });
       setEditing(data.addUserToGroup);
-      setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.addUserToGroup.userCount } : g));
+  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.addUserToGroup.userCount, adminCount: data.addUserToGroup.adminCount } : g));
       toast.success('User added');
       setUserResults(r => r.filter(u => u.id !== userId));
     } catch(e){ toast.error((e as Error).message); }
@@ -129,11 +129,30 @@ export function GroupsClient() {
     if (!editing) return;
     if (!confirm('Remove this user from group?')) return;
     try {
-      const data = await gql<{ removeUserFromGroup: Group }>('mutation($g:String!,$u:String!){ removeUserFromGroup(groupId:$g,userId:$u){ id users { id name email } userCount name createdAt } }', { g: editing.id, u: userId });
+  const data = await gql<{ removeUserFromGroup: Group }>('mutation($g:String!,$u:String!){ removeUserFromGroup(groupId:$g,userId:$u){ id users { id name email } userCount adminCount name createdAt } }', { g: editing.id, u: userId });
       setEditing(data.removeUserFromGroup);
-      setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.removeUserFromGroup.userCount } : g));
+  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, userCount: data.removeUserFromGroup.userCount, adminCount: data.removeUserFromGroup.adminCount } : g));
       toast.success('User removed');
     } catch(e){ toast.error((e as Error).message); }
+  }
+
+  function isAdmin(userId: string): boolean {
+    return !!editing?.admins?.some(a => a.id === userId)
+  }
+
+  async function toggleAdmin(userId: string) {
+    if (!editing) return
+    const makeAdmin = !isAdmin(userId)
+    try {
+      const mut = makeAdmin
+  ? 'mutation($g:String!,$u:String!){ addGroupAdmin(groupId:$g,userId:$u){ id admins { id } users { id name email } userCount adminCount name createdAt } }'
+  : 'mutation($g:String!,$u:String!){ removeGroupAdmin(groupId:$g,userId:$u){ id admins { id } users { id name email } userCount adminCount name createdAt } }'
+      const data = await gql<{ addGroupAdmin?: Group; removeGroupAdmin?: Group }>(mut, { g: editing.id, u: userId })
+      const updated = (data.addGroupAdmin || data.removeGroupAdmin) as Group
+  setEditing(updated)
+  setGroups(gs => gs.map(g => g.id === editing.id ? { ...g, adminCount: updated.adminCount } : g))
+      toast.success(makeAdmin ? 'Admin added' : 'Admin removed')
+    } catch(e){ toast.error((e as Error).message) }
   }
 
   return (
@@ -153,18 +172,20 @@ export function GroupsClient() {
               <TableHead className="w-[120px]">ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Members</TableHead>
+              <TableHead>Admins</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
+            {loading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
             {!loading && paged.map((g, i) => (
               <TableRow key={g.id}>
                 <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
                 <TableCell className="font-mono text-xs truncate max-w-[160px]" title={g.id}>{g.id}</TableCell>
                 <TableCell>{g.name}</TableCell>
                 <TableCell><Badge variant="outline">{g.userCount}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{g.adminCount ?? (g as any).admins?.length ?? 0}</Badge></TableCell>
                 <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => openGroup(g)}><IconEdit className="size-4" />Edit</Button>
@@ -172,7 +193,7 @@ export function GroupsClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !filtered.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
+            {!loading && !filtered.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -216,9 +237,15 @@ export function GroupsClient() {
                         <div className="font-medium truncate">{u.name}</div>
                         <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                       </div>
-                      <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={()=>removeUserFromGroup(u.id)}>
-                        <IconTrash className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Badge variant={isAdmin(u.id) ? 'default' : 'outline'} className="text-[10px]">{isAdmin(u.id) ? 'Admin' : 'Member'}</Badge>
+                        <Button type="button" size="sm" variant="outline" onClick={()=>toggleAdmin(u.id)}>
+                          {isAdmin(u.id) ? 'Demote' : 'Promote'}
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={()=>removeUserFromGroup(u.id)}>
+                          <IconTrash className="size-4" />
+                        </Button>
+                      </div>
                     </div>
                   )) : <div className="text-xs text-muted-foreground">No members</div> }
                 </div>

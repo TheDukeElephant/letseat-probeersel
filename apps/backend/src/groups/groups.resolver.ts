@@ -2,6 +2,7 @@ import { Args, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/g
 import { GroupsService } from './groups.service';
 import { GroupModel } from './models/group.model';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserModel } from '../users/models/user.model';
 
 @Resolver(() => GroupModel)
 export class GroupsResolver {
@@ -52,5 +53,40 @@ export class GroupsResolver {
   users(@Parent() group: any) {
     if (group.users) return group.users;
     return this.prisma.user.findMany({ where: { groups: { some: { id: group.id } } }, orderBy: { createdAt: 'desc' } });
+  }
+
+  @ResolveField(() => [UserModel], { name: 'admins' })
+  async admins(@Parent() group: any) {
+    const admins = await this.prisma.groupAdmin.findMany({ where: { groupId: group.id }, include: { user: true } });
+    return admins.map((ga) => ga.user);
+  }
+
+  @ResolveField(() => Number)
+  async adminCount(@Parent() group: any) {
+    return this.prisma.groupAdmin.count({ where: { groupId: group.id } });
+  }
+
+  @Mutation(() => GroupModel)
+  async addGroupAdmin(@Args('groupId') groupId: string, @Args('userId') userId: string) {
+    await this.prisma.groupAdmin.upsert({
+      where: { userId_groupId: { userId, groupId } },
+      update: {},
+      create: { groupId, userId },
+    });
+    return this.groups.findOne(groupId);
+  }
+
+  @Mutation(() => GroupModel)
+  async removeGroupAdmin(@Args('groupId') groupId: string, @Args('userId') userId: string) {
+    const [adminCount, membersCount] = await Promise.all([
+      this.prisma.groupAdmin.count({ where: { groupId } }),
+      this.prisma.user.count({ where: { groups: { some: { id: groupId } } } }),
+    ]);
+    const isAdmin = await this.prisma.groupAdmin.findUnique({ where: { userId_groupId: { groupId, userId } } });
+    if (isAdmin && adminCount <= 1 && membersCount > 0) {
+      throw new Error('Cannot remove the last group admin while members remain');
+    }
+    await this.prisma.groupAdmin.delete({ where: { userId_groupId: { userId, groupId } } }).catch(() => {});
+    return this.groups.findOne(groupId);
   }
 }

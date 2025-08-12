@@ -63,7 +63,8 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  groups    Group[]        // ADD relation
+  groups    Group[]        // user is a member of groups
+  groupAdminOf GroupAdmin[] @relation("UserGroupAdmin")
 
   // relations
   orders    Order[]
@@ -108,6 +109,21 @@ model Group {
   name      String   @unique
   createdAt DateTime @default(now())
   users     User[]
+  admins    GroupAdmin[] @relation("GroupAdmins")
+}
+
+model GroupAdmin {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], name: "UserGroupAdmin")
+  group     Group    @relation(fields: [groupId], references: [id], name: "GroupAdmins")
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+  @@index([userId])
 }
 
 /* -------------------------------------------------- *

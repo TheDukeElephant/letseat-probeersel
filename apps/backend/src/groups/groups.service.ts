@@ -42,7 +42,9 @@ export class GroupsService {
   }
 
   async removeUser(groupId: string, userId: string) {
-    return this.prisma.group.update({
+  // Remove admin role if present
+  await this.prisma.groupAdmin.delete({ where: { userId_groupId: { userId, groupId } } }).catch(() => {});
+  return this.prisma.group.update({
       where: { id: groupId },
       data: { users: { disconnect: { id: userId } } },
       include: { users: true, _count: { select: { users: true } } },

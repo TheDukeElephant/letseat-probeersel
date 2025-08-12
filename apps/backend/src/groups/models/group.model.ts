@@ -17,4 +17,10 @@ export class GroupModel {
 
   @Field(() => Number)
   userCount: number;
+
+  @Field(() => [UserModel], { nullable: true })
+  admins?: UserModel[];
+
+  @Field(() => Number)
+  adminCount: number;
 }
