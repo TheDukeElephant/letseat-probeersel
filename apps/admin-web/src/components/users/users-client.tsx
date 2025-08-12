@@ -61,6 +61,7 @@ export function UsersClient() {
   const [groups, setGroups] = React.useState<{id:string; name:string}[]>([])
   const [groupsLoading, setGroupsLoading] = React.useState(false)
   const [groupSearch, setGroupSearch] = React.useState("")
+  const [selectedGroupIds, setSelectedGroupIds] = React.useState<Set<string>>(new Set())
   const PAGE_SIZE = 50
   const [page, setPage] = React.useState(1)
 
@@ -88,6 +89,13 @@ export function UsersClient() {
   React.useEffect(() => { fetchUsers(); fetchGroups() }, [])
   // Reset to first page when search query changes
   React.useEffect(() => { setPage(1) }, [query])
+  // Initialize selected groups when opening edit dialog
+  React.useEffect(() => {
+    if (openEdit && editingUser) {
+      setSelectedGroupIds(new Set(editingUser.groups?.map(g => g.id) || []))
+      setGroupSearch("")
+    }
+  }, [openEdit, editingUser])
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -101,7 +109,9 @@ export function UsersClient() {
     const role = rawRole ? rawRole.toUpperCase() : undefined
     const phoneRaw = (formData.get('phone') as string | null) || undefined
     const phone = phoneRaw && phoneRaw.trim().length === 0 ? undefined : phoneRaw
-  const selectedGroups = Array.from(form.querySelectorAll('input[name="groupIds"]:checked')).map((el)=> (el as HTMLInputElement).value)
+  const selectedGroups = isEdit
+      ? Array.from(selectedGroupIds)
+      : Array.from(form.querySelectorAll('input[name="groupIds"]:checked')).map((el)=> (el as HTMLInputElement).value)
   const variables: { data: Record<string, unknown> } = { data: {
         id: editingUser?.id,
         name: formData.get('name'),
@@ -345,21 +355,40 @@ export function UsersClient() {
                           </div>
                           <div className="grid gap-2">
                             <Label>Groups</Label>
-                            <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
-                              {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
-                              {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase())).map(g => {
-                                const checked = editingUser?.groups?.some(ug => ug.id === g.id)
+                            <div className="rounded border p-2 space-y-2 max-h-40 overflow-auto text-sm">
+                              {selectedGroupIds.size === 0 && <div className="text-xs text-muted-foreground">This user is not in any groups.</div>}
+                              {Array.from(selectedGroupIds).map(id => {
+                                const g = groups.find(gr => gr.id === id)
+                                if (!g) return null
                                 return (
-                                  <label key={g.id} className="flex items-center gap-2">
-                                    <input type="checkbox" name="groupIds" value={g.id} defaultChecked={checked} />
-                                    <span>{g.name}</span>
-                                  </label>
+                                  <div key={id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
+                                    <div className="truncate">{g.name}</div>
+                                    <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.delete(id); return n })}>
+                                      Remove
+                                    </Button>
+                                  </div>
                                 )
                               })}
-                              {!groupsLoading && !groups.length && <div className="text-xs text-muted-foreground">No groups</div>}
                             </div>
-                            <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
-                            <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Add to group</Label>
+                              <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
+                              {groupSearch && (
+                                <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                                  {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
+                                  {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).map(g => (
+                                    <div key={g.id} className="flex items-center justify-between gap-2">
+                                      <div className="truncate">{g.name}</div>
+                                      <Button type="button" size="sm" variant="outline" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.add(g.id); return n })}>Add</Button>
+                                    </div>
+                                  ))}
+                                  {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).length === 0 && (
+                                    <div className="text-xs text-muted-foreground">No matches</div>
+                                  )}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
+                            </div>
                           </div>
                           <Separator />
                           <div className="space-y-2">
