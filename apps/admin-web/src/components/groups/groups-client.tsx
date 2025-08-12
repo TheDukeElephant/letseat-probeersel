@@ -47,16 +47,13 @@ export function GroupsClient() {
   function adminCountOf(g: Group) { return g.adminCount ?? (g as any).admins?.length ?? 0 }
   function onSortClick(k: SortKey) {
     setPage(1);
-    setSortKey(prev => {
-      if (prev === k) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
-      setSortDir('asc');
-      return k;
-    });
+    setSortDir(d => (sortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
+    setSortKey(k);
   }
   function SortHeader({ label, k }: { label: string; k: SortKey }) {
     const active = sortKey === k;
     return (
-      <button type="button" onClick={() => onSortClick(k)} className={`flex items-center gap-1 select-none ${active ? 'text-foreground' : 'text-foreground/80'} hover:text-foreground`}>
+      <button type="button" title="Click to sort; click again to reverse" onClick={() => onSortClick(k)} className={`flex items-center gap-1 select-none ${active ? 'text-foreground' : 'text-foreground/80'} hover:text-foreground`}>
         <span>{label}</span>
         {active ? (sortDir === 'asc' ? <IconChevronUp className="size-3.5" /> : <IconChevronDown className="size-3.5" />) : <IconArrowsSort className="size-3.5" />}
       </button>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { IconEdit, IconPlus, IconTrash, IconSearch } from "@tabler/icons-react"
+import { IconEdit, IconPlus, IconTrash, IconSearch, IconArrowsSort, IconChevronUp, IconChevronDown } from "@tabler/icons-react"
 
 export type User = {
   id: string
@@ -64,6 +64,24 @@ export function UsersClient() {
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<Set<string>>(new Set())
   const PAGE_SIZE = 50
   const [page, setPage] = React.useState(1)
+  type SortKey = 'id' | 'name' | 'email' | 'phone' | 'role' | 'registered'
+  const [sortKey, setSortKey] = React.useState<SortKey>('registered')
+  const [sortDir, setSortDir] = React.useState<'asc'|'desc'>('desc')
+
+  function onSortClick(k: SortKey) {
+    setPage(1)
+    setSortDir(d => (sortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'asc'))
+    setSortKey(k)
+  }
+  function SortHeader({ label, k }: { label: string; k: SortKey }) {
+    const active = sortKey === k
+    return (
+      <button type="button" title="Click to sort; click again to reverse" onClick={() => onSortClick(k)} className={`flex items-center gap-1 select-none ${active ? 'text-foreground' : 'text-foreground/80'} hover:text-foreground`}>
+        <span>{label}</span>
+        {active ? (sortDir === 'asc' ? <IconChevronUp className="size-3.5" /> : <IconChevronDown className="size-3.5" />) : <IconArrowsSort className="size-3.5" />}
+      </button>
+    )
+  }
 
   async function fetchUsers() {
     try {
@@ -169,12 +187,32 @@ export function UsersClient() {
     )
   }, [users, query])
 
-  const total = filtered.length
+  const sorted = React.useMemo(() => {
+    const list = [...filtered]
+    list.sort((a, b) => {
+      let va: string | number = ''
+      let vb: string | number = ''
+      switch (sortKey) {
+        case 'id': va = a.id; vb = b.id; break
+        case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break
+        case 'email': va = a.email.toLowerCase(); vb = b.email.toLowerCase(); break
+        case 'phone': va = (a.phone || '').toLowerCase(); vb = (b.phone || '').toLowerCase(); break
+  case 'role': va = a.role.toLowerCase(); vb = b.role.toLowerCase(); break
+  case 'registered': va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); break
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+    return list
+  }, [filtered, sortKey, sortDir])
+
+  const total = sorted.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const startIdx = (currentPage - 1) * PAGE_SIZE
   const endIdx = Math.min(startIdx + PAGE_SIZE, total)
-  const paged = total > PAGE_SIZE ? filtered.slice(startIdx, endIdx) : filtered
+  const paged = total > PAGE_SIZE ? sorted.slice(startIdx, endIdx) : sorted
 
   function handleExportCsv() {
     // Export currently filtered (not just current page) for flexibility
@@ -288,22 +326,22 @@ export function UsersClient() {
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead className="w-[40px]">#</TableHead>
-              <TableHead className="w-[70px]">ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead className="w-[70px]"><SortHeader label="ID" k="id" /></TableHead>
+              <TableHead><SortHeader label="Name" k="name" /></TableHead>
+              <TableHead><SortHeader label="Email" k="email" /></TableHead>
+              <TableHead><SortHeader label="Phone" k="phone" /></TableHead>
+              <TableHead><SortHeader label="Role" k="role" /></TableHead>
               <TableHead>Groups</TableHead>
-              <TableHead>Registered</TableHead>
+              <TableHead><SortHeader label="Registered" k="registered" /></TableHead>
               <TableHead className="text-right pr-5">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
             )}
             {error && !loading && (
-              <TableRow><TableCell colSpan={8} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
             )}
       {!loading && !error && paged.map((u, i) => (
               <TableRow key={u.id} className="hover:bg-muted/30">
@@ -426,9 +464,9 @@ export function UsersClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !error && !users.length && (
+      {!loading && !error && !sorted.length && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No users found.</TableCell>
+        <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">No users found.</TableCell>
               </TableRow>
             )}
           </TableBody>
