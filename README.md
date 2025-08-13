@@ -11,6 +11,7 @@ The monorepo is organized into two main directories:
 -   `apps/`: Contains all the individual applications.
     -   `admin-web`: Admin web application (Next.js).
     -   `backend`: Backend API (NestJS).
+    -   `mobile`: Mobile apps Android/iOS (React Native / Expo).
     -   `restaurant-web`: Restaurant-facing web application (Next.js).
     -   `web`: General web application for the users (Next.js).
 
