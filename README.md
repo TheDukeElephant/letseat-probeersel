@@ -77,6 +77,7 @@ Refer to the individual `package.json` files within each app directory for speci
 You can run individual applications or multiple applications concurrently using TurboRepo.
 -   `admin-web`: Running on `localhost:3001` (Next.js).
 -   `backend`: Running on `localhost:4000` (NestJS).
+-   `mobile`: Running on `localhost:8081` (Expo).
 -   `restaurant-web`: Running on `localhost:3002` (Next.js).
 -   `web`: Running on `localhost:3003` (Next.js).
 
