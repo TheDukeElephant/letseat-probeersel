@@ -41,6 +41,7 @@
     "@fortawesome/free-brands-svg-icons": "^7.0.0",
     "@fortawesome/free-regular-svg-icons": "^7.0.0",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",
-    "@fortawesome/react-fontawesome": "^0.2.3"
+    "@fortawesome/react-fontawesome": "^0.2.3",
+    "react-native-safe-area-context": "5.4.0"
   }
 }
