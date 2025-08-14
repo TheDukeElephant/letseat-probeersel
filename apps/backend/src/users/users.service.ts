@@ -52,7 +52,17 @@ export class UsersService {
   }
 
   async delete(id: string) {
-    await this.prisma.user.delete({ where: { id } });
+    // Clean up dependent relations before deleting user to avoid FK issues
+    await this.prisma.$transaction(async(tx)=>{
+      // Remove group admin links
+      await tx.groupAdmin.deleteMany({ where: { userId: id } });
+      // Disconnect from groups (many-to-many via implicit table)
+      await tx.user.update({ where: { id }, data: { groups: { set: [] } } });
+      // Remove restaurant admin links
+      await tx.restaurantAdmin.deleteMany({ where: { userId: id } });
+      // Finally delete user
+      await tx.user.delete({ where: { id } });
+    });
   }
 
   async adminRestaurants(userId: string) {

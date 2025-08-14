@@ -49,6 +49,17 @@ export class GroupsResolver {
     return this.groups.findOne(id);
   }
 
+  @Query(() => [GroupModel])
+  async groupsSearch(@Args('q') q: string) {
+    if (!q.trim()) return [];
+    return this.prisma.group.findMany({
+      where: { name: { contains: q, mode: 'insensitive' } },
+      orderBy: { name: 'asc' },
+      take: 25,
+      include: { users: true, _count: { select: { users: true } } },
+    });
+  }
+
   @Mutation(() => GroupModel)
   createGroup(@Args('input') input: CreateGroupInput) {
     return this.groups.create(input);

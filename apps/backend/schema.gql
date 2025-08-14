@@ -48,6 +48,19 @@ input CreateMenuItemInput {
   stock: Float
 }
 
+input CreateOrderInput {
+  deliveryAddressLine: String!
+  deliveryCity: String!
+  deliveryLat: Float
+  deliveryLng: Float
+  deliveryPostalCode: String!
+  groupId: String!
+  restaurantId: String!
+  scheduledFor: DateTime
+  specialInstructions: String
+  userId: String!
+}
+
 input CreateRestaurantInput {
   address: String!
   adminUserIds: [String!]
@@ -165,13 +178,16 @@ type MenuModel {
 
 type Mutation {
   addGroupAdmin(groupId: String!, userId: String!): GroupModel!
+  addOrderItem(comment: String, menuItemId: String!, orderId: String!, quantity: Float!, userId: String!): OrderItemModel!
   addRestaurantAdmin(restaurantId: String!, userId: String!): Boolean!
   addUserToGroup(groupId: String!, userId: String!): GroupModel!
   batchUpdateMenuItems(data: BatchUpdateMenuItemsInput!): Boolean!
+  changeOrderStatus(orderId: String!, status: String!): OrderModel!
   createGroup(input: CreateGroupInput!): GroupModel!
   createMenu(data: CreateMenuInput!): MenuModel!
   createMenuCategory(data: CreateMenuCategoryInput!): MenuCategoryModel!
   createMenuItem(data: CreateMenuItemInput!): MenuItemModel!
+  createOrder(input: CreateOrderInput!): OrderModel!
   createRestaurant(data: CreateRestaurantInput!): RestaurantModel!
   createUser(data: CreateUserInput!): UserModel!
   deleteGroup(id: String!): Boolean!
@@ -181,21 +197,76 @@ type Mutation {
   deleteRestaurant(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
   enforceGroupAdminInvariants: Float!
+  finalizeOrder(orderId: String!, userId: String!): OrderModel!
   removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
+  removeOrderItem(orderItemId: String!, userId: String!): Boolean!
   removeRestaurantAdmin(restaurantId: String!, userId: String!): Boolean!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
   updateGroup(id: String!, input: UpdateGroupInput!): GroupModel!
   updateMenu(data: UpdateMenuInput!): MenuModel!
   updateMenuCategory(data: UpdateMenuCategoryInput!): MenuCategoryModel!
   updateMenuItem(data: UpdateMenuItemInput!): MenuItemModel!
+  updateOrderItemQuantity(orderItemId: String!, quantity: Float!, userId: String!): OrderModel!
   updateRestaurant(data: UpdateRestaurantInput!): RestaurantModel!
   updateUser(data: UpdateUserInput!): UserModel!
+}
+
+type OrderItemModel {
+  addedByUserId: String!
+  comment: String
+  id: ID!
+  menuItemId: String!
+  orderId: String!
+  price: String!
+  quantity: Float!
+}
+
+type OrderModel {
+  couponCode: String
+  createdAt: DateTime!
+  currency: String!
+  deliveryAddressLine: String!
+  deliveryCity: String!
+  deliveryFee: String!
+  deliveryLat: Float
+  deliveryLng: Float
+  deliveryPostalCode: String!
+  discountTotal: String!
+  finalizedAt: DateTime
+  grandTotal: String!
+  group: GroupModel
+  groupId: String!
+  id: ID!
+  isFinalized: Boolean!
+  items: [OrderItemModel!]
+  restaurantId: String!
+  scheduledFor: DateTime
+  serviceFee: String!
+  specialInstructions: String
+  status: OrderStatus!
+  subtotal: String!
+  taxAmount: String!
+  tipAmount: String!
+  updatedAt: DateTime!
+  userId: String!
+}
+
+enum OrderStatus {
+  ACCEPTED
+  CANCELLED
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+  REJECTED
 }
 
 type Query {
   group(id: String!): GroupModel
   groups: [GroupModel!]!
+  groupsSearch(q: String!): [GroupModel!]!
   menusByRestaurant(restaurantId: ID!): [MenuModel!]!
+  order(id: String!): OrderModel
+  ordersAll: [OrderModel!]!
   restaurant(id: String!): RestaurantModel
   restaurants: [RestaurantModel!]!
   user(id: String!): UserModel

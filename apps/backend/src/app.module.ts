@@ -13,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MenusModule } from './menus/menus.module';
+import { OrdersModule } from './orders/orders.module';
 
 // Roadmap (future modules we might plug in): AuthModule, OrdersModule, PaymentsModule, etc.
 
@@ -31,6 +32,7 @@ import { MenusModule } from './menus/menus.module';
     GroupsModule,
     RestaurantsModule,
     MenusModule,
+  OrdersModule,
   ],
   // REST controllers (if any) would be listed here. We have none right now.
   controllers: [],

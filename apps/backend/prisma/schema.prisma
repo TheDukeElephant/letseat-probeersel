@@ -84,7 +84,8 @@ model User {
   restaurantAdmins RestaurantAdmin[]
 
   // relations
-  orders    Order[]
+  orders    Order[]         // orders created by this user (as creator/initiator)
+  orderItemsAdded OrderItem[] @relation("OrderItemAddedBy")
   addresses Address[]
 }
 
@@ -180,6 +181,7 @@ model Group {
   createdAt DateTime @default(now())
   users     User[]
   admins    GroupAdmin[] @relation("GroupAdmins")
+  orders    Order[]        // group orders
   // Optional invoice / billing details
   billingName       String? 
   billingEmail      String? 
@@ -257,14 +259,28 @@ model MenuItem {
  * -------------------------------------------------- */
 
 model Order {
-  id              String        @id @default(cuid())
-  userId          String
-  restaurantId    String
-  status          OrderStatus   @default(PENDING)
-  totalAmount     Decimal
-  currency        String        @default("EUR")
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  userId           String                 // creator (initiated the group order)
+  groupId          String                 // owning group; only members can contribute
+  restaurantId     String
+  status           OrderStatus   @default(PENDING)
+  currency         String        @default("EUR")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  isFinalized      Boolean       @default(false)  // after finalization no more item edits
+  finalizedAt      DateTime?
+  scheduledFor     DateTime?                    // optional future scheduling / preorder
+  specialInstructions String?                   // free-text notes for restaurant/delivery
+  couponCode       String?
+
+  // Monetary snapshot / breakdown at time of last calculation
+  subtotal         Decimal        @default(0)    // sum(item price * qty)
+  taxAmount        Decimal        @default(0)
+  deliveryFee      Decimal        @default(0)
+  serviceFee       Decimal        @default(0)
+  tipAmount        Decimal        @default(0)
+  discountTotal    Decimal        @default(0)
+  grandTotal       Decimal        @default(0)    // subtotal + tax + fees + tip - discounts
 
   // snapshot of delivery address (keeps history even if user edits address later)
   deliveryAddressLine String
@@ -274,24 +290,33 @@ model Order {
   deliveryLng         Decimal?
 
   // relations
-  user        User        @relation(fields: [userId], references: [id])
-  restaurant  Restaurant  @relation(fields: [restaurantId], references: [id])
-  items       OrderItem[]
-  payment     Payment?
-  delivery    Delivery?
+  user         User        @relation(fields: [userId], references: [id])
+  group        Group       @relation(fields: [groupId], references: [id])
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  items        OrderItem[]
+  payment      Payment?
+  delivery     Delivery?
+
+  @@index([groupId])
+  @@index([restaurantId])
+  @@index([status])
 }
 
 model OrderItem {
-  id          String   @id @default(cuid())
-  orderId     String
-  menuItemId  String
-  quantity    Int
-  price       Decimal   // price at time of purchase
+  id             String   @id @default(cuid())
+  orderId        String
+  menuItemId     String
+  addedByUserId  String           // member who added this item
+  quantity       Int
+  price          Decimal          // price snapshot at time of addition
+  comment        String?          // optional per-item note (e.g. "no onions")
 
-  order       Order     @relation(fields: [orderId], references: [id])
-  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
+  order          Order     @relation(fields: [orderId], references: [id])
+  menuItem       MenuItem  @relation(fields: [menuItemId], references: [id])
+  user           User      @relation("OrderItemAddedBy", fields: [addedByUserId], references: [id])
 
   @@index([orderId])
+  @@index([addedByUserId])
 }
 
 model Payment {

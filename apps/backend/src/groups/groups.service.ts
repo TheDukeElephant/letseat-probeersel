@@ -82,6 +82,12 @@ export class GroupsService {
   }
 
   async addUser(groupId: string, userId: string) {
+    // Prevent assigning restaurant-role users to groups.
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user) throw new Error('User not found');
+    if (user.role === 'RESTAURANT') {
+      throw new Error('Restaurant users cannot be assigned to groups');
+    }
     return this.prisma.group.update({
       where: { id: groupId },
       data: { users: { connect: { id: userId } } },
@@ -124,10 +130,20 @@ export class GroupsService {
     let deleted = 0;
     // Fetch groups with counts only (efficient) then handle each needing adjustment.
     const groups = await this.prisma.group.findMany({
-      select: { id: true, users: { select: { id: true } } },
+      select: { id: true, users: { select: { id: true, role: true } } },
     });
     for (const g of groups) {
       const memberIds = g.users.map(u => u.id);
+      // 0. Remove any members that have restaurant role (should not be in groups)
+      const restaurantRoleMemberIds = g.users.filter(u => u.role === 'RESTAURANT').map(u => u.id);
+      if (restaurantRoleMemberIds.length) {
+        await this.prisma.group.update({
+          where: { id: g.id },
+          data: { users: { disconnect: restaurantRoleMemberIds.map(id => ({ id })) } },
+        });
+        // Also drop any admin rows for those users.
+        await this.prisma.groupAdmin.deleteMany({ where: { groupId: g.id, userId: { in: restaurantRoleMemberIds } } });
+      }
       const memberCount = memberIds.length;
       // Get admins ordered by createdAt so we can deterministically trim.
       const admins = await this.prisma.groupAdmin.findMany({ where: { groupId: g.id }, orderBy: { createdAt: 'asc' } });
