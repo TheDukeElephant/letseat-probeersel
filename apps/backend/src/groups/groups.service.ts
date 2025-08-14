@@ -13,11 +13,40 @@ export class GroupsService {
   }
 
   async findOne(id: string) {
-    return this.prisma.group.findUnique({ where: { id }, include: { users: true, _count: { select: { users: true } } } });
+    return this.prisma.group.findUnique({
+      where: { id },
+      include: { users: true, _count: { select: { users: true } } },
+    });
   }
 
-  async create(name: string) {
-    return this.prisma.group.create({ data: { name } });
+  async create(data: {
+    name: string;
+    billingName?: string | null;
+    billingEmail?: string | null;
+    billingAddress?: string | null;
+    billingPostalCode?: string | null;
+    billingCity?: string | null;
+    billingCountry?: string | null;
+    vatNumber?: string | null;
+    companyNumber?: string | null;
+    iban?: string | null;
+    bic?: string | null;
+  }) {
+    return this.prisma.group.create({
+      data: {
+        name: data.name,
+        billingName: data.billingName,
+        billingEmail: data.billingEmail,
+        billingAddress: data.billingAddress,
+        billingPostalCode: data.billingPostalCode,
+        billingCity: data.billingCity,
+        billingCountry: data.billingCountry,
+        vatNumber: data.vatNumber,
+        companyNumber: data.companyNumber,
+        iban: data.iban,
+        bic: data.bic,
+      },
+    });
   }
 
   async delete(id: string) {
@@ -25,10 +54,24 @@ export class GroupsService {
     return true;
   }
 
-  async update(id: string, name: string) {
+  async update(id: string, data: {
+    name?: string;
+    billingName?: string | null;
+    billingEmail?: string | null;
+    billingAddress?: string | null;
+    billingPostalCode?: string | null;
+    billingCity?: string | null;
+    billingCountry?: string | null;
+    vatNumber?: string | null;
+    companyNumber?: string | null;
+    iban?: string | null;
+    bic?: string | null;
+  }) {
     return this.prisma.group.update({
       where: { id },
-      data: { name },
+      data: {
+        ...data,
+      },
       include: { users: true, _count: { select: { users: true } } },
     });
   }

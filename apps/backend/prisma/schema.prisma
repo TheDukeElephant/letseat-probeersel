@@ -81,6 +81,7 @@ model User {
   updatedAt DateTime @updatedAt
   groups    Group[]        // user is a member of groups
   groupAdminOf GroupAdmin[] @relation("UserGroupAdmin")
+  restaurantAdmins RestaurantAdmin[]
 
   // relations
   orders    Order[]
@@ -118,6 +119,16 @@ model Restaurant {
   // Commercial / financial
   serviceFeePercent Decimal?   // Platform service fee override
   vatNumber         String?    @unique @db.VarChar(64)
+  // Invoice / payout details (nullable; collected during onboarding)
+  billingName        String?
+  billingEmail       String?
+  billingAddress     String?
+  billingPostalCode  String?
+  billingCity        String?
+  billingCountry     String?   @default("NL")
+  companyNumber      String?   @db.VarChar(64) // e.g. KVK
+  iban               String?   @db.VarChar(64)
+  bic                String?   @db.VarChar(32)
 
   // Aggregated ratings (denormalized for quick reads)
   ratingAverage     Decimal?   // e.g. 4.6 (store as numeric, compute externally)
@@ -130,10 +141,24 @@ model Restaurant {
   menus       Menu[]
   orders      Order[]
   addresses   Address[]
+  admins      RestaurantAdmin[]
 
   @@index([isActive])
   @@index([cuisine])
   @@index([isFeatured])
+}
+
+model RestaurantAdmin {
+  id           String   @id @default(cuid())
+  restaurantId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@unique([restaurantId, userId])
+  @@index([userId])
 }
 
 model Driver {
@@ -155,6 +180,17 @@ model Group {
   createdAt DateTime @default(now())
   users     User[]
   admins    GroupAdmin[] @relation("GroupAdmins")
+  // Optional invoice / billing details
+  billingName       String? 
+  billingEmail      String? 
+  billingAddress    String? 
+  billingPostalCode String? 
+  billingCity       String? 
+  billingCountry    String? 
+  vatNumber         String? 
+  companyNumber     String? 
+  iban              String? 
+  bic               String?
 }
 
 model GroupAdmin {

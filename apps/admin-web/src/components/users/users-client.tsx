@@ -20,6 +20,7 @@ export type User = {
   role: string
   createdAt: string
   groups?: { id: string; name: string }[]
+  adminRestaurants?: { id: string; name: string }[]
 }
 
 // GraphQL endpoint: default /graphql (Nest GraphQL route is not prefixed by global prefix in this setup)
@@ -62,11 +63,18 @@ export function UsersClient() {
   const [groupsLoading, setGroupsLoading] = React.useState(false)
   const [groupSearch, setGroupSearch] = React.useState("")
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<Set<string>>(new Set())
+  // Restaurant admin assignment state
+  const [restaurants, setRestaurants] = React.useState<{id:string; name:string}[]>([])
+  const [restaurantsLoading, setRestaurantsLoading] = React.useState(false)
+  const [restaurantSearch, setRestaurantSearch] = React.useState("")
+  const [selectedRestaurantIds, setSelectedRestaurantIds] = React.useState<Set<string>>(new Set())
   const PAGE_SIZE = 50
   const [page, setPage] = React.useState(1)
   type SortKey = 'id' | 'name' | 'email' | 'phone' | 'role' | 'registered'
   const [sortKey, setSortKey] = React.useState<SortKey>('registered')
   const [sortDir, setSortDir] = React.useState<'asc'|'desc'>('desc')
+  const [addRole, setAddRole] = React.useState('USER')
+  const [editRole, setEditRole] = React.useState<string | null>(null)
 
   function onSortClick(k: SortKey) {
     setPage(1)
@@ -86,7 +94,7 @@ export function UsersClient() {
   async function fetchUsers() {
     try {
       setLoading(true)
-      const json = await postGraphQL<{ users: User[] }>({ query: `query Users { users { id name email phone role createdAt groups { id name } } }` })
+  const json = await postGraphQL<{ users: User[] }>({ query: `query Users { users { id name email phone role createdAt groups { id name } adminRestaurants { id name } } }` })
       if (json.errors) throw new Error(json.errors[0].message)
       setUsers(json.data.users.map((u) => ({ ...u, createdAt: u.createdAt })))
     } catch (e) {
@@ -105,13 +113,22 @@ export function UsersClient() {
     } finally { setGroupsLoading(false) }
   }
   React.useEffect(() => { fetchUsers(); fetchGroups() }, [])
+  async function fetchRestaurants() {
+    try { setRestaurantsLoading(true); const data = await postGraphQL<{ restaurants: { id:string; name:string }[] }>({ query: `query { restaurants { id name } }` }); setRestaurants(data.data.restaurants) } finally { setRestaurantsLoading(false) }
+  }
+  React.useEffect(() => { fetchRestaurants() }, [])
   // Reset to first page when search query changes
   React.useEffect(() => { setPage(1) }, [query])
+  // Reset selections when opening add dialog
+  React.useEffect(() => { if (openAdd) { setSelectedRestaurantIds(new Set()); setRestaurantSearch(""); setSelectedGroupIds(new Set()); setGroupSearch(""); setAddRole('USER'); } }, [openAdd])
   // Initialize selected groups when opening edit dialog
   React.useEffect(() => {
     if (openEdit && editingUser) {
       setSelectedGroupIds(new Set(editingUser.groups?.map(g => g.id) || []))
-      setGroupSearch("")
+  setGroupSearch("")
+  setSelectedRestaurantIds(new Set(editingUser.adminRestaurants?.map(r => r.id) || []))
+  setRestaurantSearch("")
+  setEditRole(editingUser.role)
     }
   }, [openEdit, editingUser])
 
@@ -120,16 +137,18 @@ export function UsersClient() {
     const form = e.currentTarget
     const formData = new FormData(form)
     const isEdit = !!editingUser?.id
+    const selection = `{ id name email phone role createdAt groups { id name } adminRestaurants { id name } }`
     const mutation = isEdit
-      ? `mutation UpdateUser($data: UpdateUserInput!){ updateUser(data:$data){ id name email phone role createdAt groups { id name } } }`
-      : `mutation CreateUser($data: CreateUserInput!){ createUser(data:$data){ id name email phone role createdAt groups { id name } } }`
+      ? `mutation UpdateUser($data: UpdateUserInput!){ updateUser(data:$data) ${selection} }`
+      : `mutation CreateUser($data: CreateUserInput!){ createUser(data:$data) ${selection} }`
     const rawRole = formData.get('role') as string | null
     const role = rawRole ? rawRole.toUpperCase() : undefined
     const phoneRaw = (formData.get('phone') as string | null) || undefined
     const phone = phoneRaw && phoneRaw.trim().length === 0 ? undefined : phoneRaw
-  const selectedGroups = isEdit
+  const isRestaurantRole = role === 'RESTAURANT'
+  const selectedGroups = (isRestaurantRole || role === 'ADMIN') ? [] : (isEdit
       ? Array.from(selectedGroupIds)
-      : Array.from(form.querySelectorAll('input[name="groupIds"]:checked')).map((el)=> (el as HTMLInputElement).value)
+      : Array.from(form.querySelectorAll('input[name="groupIds"]:checked')).map((el)=> (el as HTMLInputElement).value))
   const variables: { data: Record<string, unknown> } = { data: {
         id: editingUser?.id,
         name: formData.get('name'),
@@ -142,8 +161,22 @@ export function UsersClient() {
     if (!isEdit) delete variables.data.id
     setSubmitting(true)
     try {
-  const json = await postGraphQL<{ updateUser?: User; createUser?: User }>({ query: mutation, variables })
-  if (json.errors?.length) throw new Error(json.errors.map(er=>er.message).join('; '))
+      const json = await postGraphQL<{ updateUser?: User; createUser?: User }>({ query: mutation, variables })
+      if (json.errors?.length) throw new Error(json.errors.map(er=>er.message).join('; '))
+      const savedUser = json.data.updateUser || json.data.createUser
+      if (savedUser && isRestaurantRole) {
+        // Determine desired restaurants from selectedRestaurantIds
+        const desired = Array.from(selectedRestaurantIds)
+        const existing = new Set(savedUser.adminRestaurants?.map(r=>r.id) || [])
+        const toAdd = desired.filter(id => !existing.has(id))
+        const toRemove = Array.from(existing).filter(id => !desired.includes(id))
+        for (const rid of toAdd) {
+          await postGraphQL({ query: `mutation($restaurantId:String!,$userId:String!){ addRestaurantAdmin(restaurantId:$restaurantId,userId:$userId) }`, variables: { restaurantId: rid, userId: savedUser.id } })
+        }
+        for (const rid of toRemove) {
+          await postGraphQL({ query: `mutation($restaurantId:String!,$userId:String!){ removeRestaurantAdmin(restaurantId:$restaurantId,userId:$userId) }`, variables: { restaurantId: rid, userId: savedUser.id } })
+        }
+      }
       toast.success(isEdit ? 'User updated' : 'User added')
       await fetchUsers()
       // Only close on success
@@ -286,28 +319,67 @@ export function UsersClient() {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select name="role" defaultValue="USER">
+                    <Select name="role" defaultValue={addRole} onValueChange={v=>setAddRole(v)}>
                       <SelectTrigger id="role"><SelectValue placeholder="Select role" /></SelectTrigger>
                       <SelectContent>
                         {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Groups</Label>
-                    <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
-                      {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
-                      {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase())).map(g => (
-                        <label key={g.id} className="flex items-center gap-2">
-                          <input type="checkbox" name="groupIds" value={g.id} />
-                          <span>{g.name}</span>
-                        </label>
-                      ))}
-                      {!groupsLoading && !groups.length && <div className="text-xs text-muted-foreground">No groups</div>}
+                  {addRole === 'USER' && (
+                    <div className="grid gap-2">
+                      <Label>Groups</Label>
+                      <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                        {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
+                        {!groupsLoading && groups.map(g => (
+                          <label key={g.id} className="flex items-center gap-2">
+                            <input type="checkbox" name="groupIds" value={g.id} />
+                            <span>{g.name}</span>
+                          </label>
+                        ))}
+                        {!groupsLoading && !groups.length && <div className="text-xs text-muted-foreground">No groups</div>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Assign groups to USER role only.</div>
                     </div>
-                    <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
-                    <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
-                  </div>
+                  )}
+                  {addRole === 'RESTAURANT' && (
+                    <div className="grid gap-2">
+                      <Label>Restaurants (admin access)</Label>
+                      <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                        {selectedRestaurantIds.size === 0 && <div className="text-xs text-muted-foreground">No restaurants selected.</div>}
+                        {Array.from(selectedRestaurantIds).map(id => {
+                          const r = restaurants.find(rr => rr.id === id); if(!r) return null; return (
+                            <div key={id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
+                              <div className="truncate">{r.name}</div>
+                              <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setSelectedRestaurantIds(s => { const n = new Set(s); n.delete(id); return n })}>Remove</Button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Add restaurant</Label>
+                        <Input placeholder="Search restaurants..." value={restaurantSearch} onChange={e=>setRestaurantSearch(e.target.value)} className="h-8 text-xs" />
+                        {restaurantSearch && (
+                          <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                            {restaurantsLoading && <div className="text-xs text-muted-foreground">Loading restaurants...</div>}
+                            {!restaurantsLoading && restaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()) && !selectedRestaurantIds.has(r.id)).map(r => (
+                              <div key={r.id} className="flex items-center justify-between gap-2">
+                                <div className="truncate">{r.name}</div>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setSelectedRestaurantIds(s => { const n = new Set(s); n.add(r.id); return n })}>Add</Button>
+                              </div>
+                            ))}
+                            {!restaurantsLoading && restaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()) && !selectedRestaurantIds.has(r.id)).length === 0 && (
+                              <div className="text-xs text-muted-foreground">No matches</div>
+                            )}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">Restaurant admins can manage only their assigned restaurants.</div>
+                      </div>
+                    </div>
+                  )}
+                  {addRole === 'ADMIN' && (
+                    <div className="text-xs text-muted-foreground">Admins cannot be assigned to groups or restaurants.</div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Save'}</Button>
@@ -332,16 +404,17 @@ export function UsersClient() {
               <TableHead><SortHeader label="Phone" k="phone" /></TableHead>
               <TableHead><SortHeader label="Role" k="role" /></TableHead>
               <TableHead>Groups</TableHead>
+              <TableHead>Restaurants</TableHead>
               <TableHead><SortHeader label="Registered" k="registered" /></TableHead>
               <TableHead className="text-right pr-5">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={9} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
             )}
             {error && !loading && (
-              <TableRow><TableCell colSpan={9} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="py-6 text-center text-destructive">{error}</TableCell></TableRow>
             )}
       {!loading && !error && paged.map((u, i) => (
               <TableRow key={u.id} className="hover:bg-muted/30">
@@ -362,6 +435,10 @@ export function UsersClient() {
                 <TableCell className="space-x-1">
                   {u.groups?.slice(0,3).map(g => <Badge key={g.id} variant="outline">{g.name}</Badge>)}
                   {u.groups && u.groups.length > 3 && <Badge variant="secondary">+{u.groups.length - 3}</Badge>}
+                </TableCell>
+                <TableCell className="space-x-1">
+                  {u.adminRestaurants?.slice(0,3).map(r => <Badge key={r.id} variant="outline">{r.name}</Badge>)}
+                  {u.adminRestaurants && u.adminRestaurants.length > 3 && <Badge variant="secondary">+{u.adminRestaurants.length - 3}</Badge>}
                 </TableCell>
                 <TableCell>{new Date(u.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
@@ -392,50 +469,88 @@ export function UsersClient() {
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
-                            <Select name="role" defaultValue={editingUser?.role || 'USER'}>
+                            <Select name="role" defaultValue={editingUser?.role || 'USER'} onValueChange={v=>{ setEditRole(v); }}>
                               <SelectTrigger id="role"><SelectValue placeholder="Select role" /></SelectTrigger>
                               <SelectContent>
                                 {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="grid gap-2">
-                            <Label>Groups</Label>
-                            <div className="rounded border p-2 space-y-2 max-h-40 overflow-auto text-sm">
-                              {selectedGroupIds.size === 0 && <div className="text-xs text-muted-foreground">This user is not in any groups.</div>}
-                              {Array.from(selectedGroupIds).map(id => {
-                                const g = groups.find(gr => gr.id === id)
-                                if (!g) return null
-                                return (
-                                  <div key={id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
-                                    <div className="truncate">{g.name}</div>
-                                    <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.delete(id); return n })}>
-                                      Remove
-                                    </Button>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs text-muted-foreground">Add to group</Label>
-                              <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
-                              {groupSearch && (
-                                <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
-                                  {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
-                                  {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).map(g => (
-                                    <div key={g.id} className="flex items-center justify-between gap-2">
-                                      <div className="truncate">{g.name}</div>
-                                      <Button type="button" size="sm" variant="outline" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.add(g.id); return n })}>Add</Button>
+                          {(editRole || editingUser?.role) === 'RESTAURANT' ? (
+                            <div className="grid gap-2">
+                              <Label>Restaurants (admin access)</Label>
+                              <div className="rounded border p-2 space-y-2 max-h-40 overflow-auto text-sm">
+                                {selectedRestaurantIds.size === 0 && <div className="text-xs text-muted-foreground">No restaurants selected.</div>}
+                                {Array.from(selectedRestaurantIds).map(id => {
+                                  const r = restaurants.find(rr => rr.id === id)
+                                  if (!r) return null
+                                  return (
+                                    <div key={id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
+                                      <div className="truncate">{r.name}</div>
+                                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setSelectedRestaurantIds(s => { const n = new Set(s); n.delete(id); return n })}>Remove</Button>
                                     </div>
-                                  ))}
-                                  {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).length === 0 && (
-                                    <div className="text-xs text-muted-foreground">No matches</div>
-                                  )}
-                                </div>
-                              )}
-                              <div className="text-xs text-muted-foreground">To create a new group, go to the Groups page.</div>
+                                  )
+                                })}
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Add restaurant</Label>
+                                <Input placeholder="Search restaurants..." value={restaurantSearch} onChange={e=>setRestaurantSearch(e.target.value)} className="h-8 text-xs" />
+                                {restaurantSearch && (
+                                  <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                                    {restaurantsLoading && <div className="text-xs text-muted-foreground">Loading restaurants...</div>}
+                                    {!restaurantsLoading && restaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()) && !selectedRestaurantIds.has(r.id)).map(r => (
+                                      <div key={r.id} className="flex items-center justify-between gap-2">
+                                        <div className="truncate">{r.name}</div>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => setSelectedRestaurantIds(s => { const n = new Set(s); n.add(r.id); return n })}>Add</Button>
+                                      </div>
+                                    ))}
+                                    {!restaurantsLoading && restaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()) && !selectedRestaurantIds.has(r.id)).length === 0 && (
+                                      <div className="text-xs text-muted-foreground">No matches</div>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="text-xs text-muted-foreground">Restaurant admins can manage only their assigned restaurants.</div>
+                              </div>
                             </div>
-                          </div>
+                          ) : (editRole || editingUser?.role) === 'USER' ? (
+                            <div className="grid gap-2">
+                              <Label>Groups</Label>
+                              <div className="rounded border p-2 space-y-2 max-h-40 overflow-auto text-sm">
+                                {selectedGroupIds.size === 0 && <div className="text-xs text-muted-foreground">This user is not in any groups.</div>}
+                                {Array.from(selectedGroupIds).map(id => {
+                                  const g = groups.find(gr => gr.id === id)
+                                  if (!g) return null
+                                  return (
+                                    <div key={id} className="flex items-center justify-between gap-2 bg-muted/40 px-2 py-1 rounded">
+                                      <div className="truncate">{g.name}</div>
+                                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.delete(id); return n })}>Remove</Button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Add to group</Label>
+                                <Input placeholder="Search groups..." value={groupSearch} onChange={e=>setGroupSearch(e.target.value)} className="h-8 text-xs" />
+                                {groupSearch && (
+                                  <div className="rounded border p-2 space-y-1 max-h-40 overflow-auto text-sm">
+                                    {groupsLoading && <div className="text-xs text-muted-foreground">Loading groups...</div>}
+                                    {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).map(g => (
+                                      <div key={g.id} className="flex items-center justify-between gap-2">
+                                        <div className="truncate">{g.name}</div>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => setSelectedGroupIds(s => { const n = new Set(s); n.add(g.id); return n })}>Add</Button>
+                                      </div>
+                                    ))}
+                                    {!groupsLoading && groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()) && !selectedGroupIds.has(g.id)).length === 0 && (
+                                      <div className="text-xs text-muted-foreground">No matches</div>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="text-xs text-muted-foreground">Groups apply to USER role only.</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-muted-foreground">Admins cannot be assigned to groups or restaurants.</div>
+                          )}
                           <Separator />
                           <div className="space-y-2">
                             <Button type="button" variant="destructive" className="w-full gap-2" onClick={() => setConfirmDelete(true)}>
@@ -466,7 +581,7 @@ export function UsersClient() {
             ))}
       {!loading && !error && !sorted.length && (
               <TableRow>
-        <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">No users found.</TableCell>
+  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">No users found.</TableCell>
               </TableRow>
             )}
           </TableBody>

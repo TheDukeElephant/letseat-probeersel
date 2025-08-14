@@ -12,6 +12,20 @@ input BatchUpdateMenuItemsInput {
   items: [BatchUpdateMenuItemInput!]!
 }
 
+input CreateGroupInput {
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
+  iban: String
+  name: String!
+  vatNumber: String
+}
+
 input CreateMenuCategoryInput {
   menuId: ID!
   name: String!
@@ -19,6 +33,7 @@ input CreateMenuCategoryInput {
 
 input CreateMenuInput {
   description: String
+  isActive: Boolean
   name: String!
   restaurantId: ID!
 }
@@ -35,13 +50,23 @@ input CreateMenuItemInput {
 
 input CreateRestaurantInput {
   address: String!
+  adminUserIds: [String!]
   allergyTags: [String!]
   avgPrepTimeMins: Float
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
   cuisine: CuisineType
   deliveryRadiusKm: Float
   description: String
   email: String!
   heroImageUrl: String
+  iban: String
   isFeatured: Boolean
   lat: Float
   lng: Float
@@ -87,11 +112,21 @@ scalar DateTime
 type GroupModel {
   adminCount: Float!
   admins: [UserModel!]
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
   createdAt: DateTime!
+  iban: String
   id: ID!
   name: String!
   userCount: Float!
   users: [UserModel!]
+  vatNumber: String
 }
 
 type MenuCategoryModel {
@@ -130,9 +165,10 @@ type MenuModel {
 
 type Mutation {
   addGroupAdmin(groupId: String!, userId: String!): GroupModel!
+  addRestaurantAdmin(restaurantId: String!, userId: String!): Boolean!
   addUserToGroup(groupId: String!, userId: String!): GroupModel!
   batchUpdateMenuItems(data: BatchUpdateMenuItemsInput!): Boolean!
-  createGroup(name: String!): GroupModel!
+  createGroup(input: CreateGroupInput!): GroupModel!
   createMenu(data: CreateMenuInput!): MenuModel!
   createMenuCategory(data: CreateMenuCategoryInput!): MenuCategoryModel!
   createMenuItem(data: CreateMenuItemInput!): MenuItemModel!
@@ -145,8 +181,9 @@ type Mutation {
   deleteRestaurant(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
   removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
+  removeRestaurantAdmin(restaurantId: String!, userId: String!): Boolean!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
-  updateGroup(id: String!, name: String!): GroupModel!
+  updateGroup(id: String!, input: UpdateGroupInput!): GroupModel!
   updateMenu(data: UpdateMenuInput!): MenuModel!
   updateMenuCategory(data: UpdateMenuCategoryInput!): MenuCategoryModel!
   updateMenuItem(data: UpdateMenuItemInput!): MenuItemModel!
@@ -166,14 +203,24 @@ type Query {
 
 type RestaurantModel {
   address: String!
+  admins: [UserModel!]
   allergyTags: [String!]!
   avgPrepTimeMins: Float
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
   createdAt: DateTime!
   cuisine: CuisineType
   deliveryRadiusKm: Float
   description: String
   email: String!
   heroImageUrl: String
+  iban: String
   id: ID!
   isActive: Boolean!
   isFeatured: Boolean!
@@ -196,6 +243,20 @@ enum Role {
   ADMIN
   RESTAURANT
   USER
+}
+
+input UpdateGroupInput {
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
+  iban: String
+  name: String
+  vatNumber: String
 }
 
 input UpdateMenuCategoryInput {
@@ -227,13 +288,23 @@ input UpdateMenuItemInput {
 
 input UpdateRestaurantInput {
   address: String
+  adminUserIds: [String!]
   allergyTags: [String!]
   avgPrepTimeMins: Float
+  bic: String
+  billingAddress: String
+  billingCity: String
+  billingCountry: String
+  billingEmail: String
+  billingName: String
+  billingPostalCode: String
+  companyNumber: String
   cuisine: CuisineType
   deliveryRadiusKm: Float
   description: String
   email: String
   heroImageUrl: String
+  iban: String
   id: ID!
   isActive: Boolean
   isFeatured: Boolean
@@ -260,6 +331,7 @@ input UpdateUserInput {
 }
 
 type UserModel {
+  adminRestaurants: [RestaurantModel!]
   createdAt: DateTime!
   email: String!
   groups: [GroupModel!]

@@ -13,18 +13,20 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    return this.prisma.user.findUnique({ where: { id }, include: { groups: true } });
+  return this.prisma.user.findUnique({ where: { id }, include: { groups: true } });
   }
 
   async create(data: CreateUserInput) {
     const { groupIds, ...rest } = data;
     const passwordHash = this.hashPassword(rest.password);
+  const disallowRoles = ['RESTAURANT','ADMIN'];
+  const allowGroups = !disallowRoles.includes((rest.role ?? 'USER'));
     return this.prisma.user.create({
       data: {
         ...rest,
         password: passwordHash,
         role: rest.role ?? 'USER',
-        groups: groupIds?.length ? { connect: groupIds.map((id) => ({ id })) } : undefined,
+    groups: allowGroups && groupIds?.length ? { connect: groupIds.map((id) => ({ id })) } : undefined,
       },
       include: { groups: true },
     });
@@ -35,12 +37,15 @@ export class UsersService {
     if (rest.password) {
       (rest as any).password = this.hashPassword(rest.password);
     }
+  const disallowRoles = ['RESTAURANT','ADMIN'];
+  const currentRole = rest.role ?? (await this.prisma.user.findUnique({ where: { id }, select: { role: true } }))?.role;
+  const allowGroups = !disallowRoles.includes(currentRole as string);
     return this.prisma.user.update({
       where: { id },
       data: {
         ...rest,
         id: undefined,
-        groups: groupIds ? { set: groupIds.map((gid) => ({ id: gid })) } : undefined,
+    groups: allowGroups && groupIds ? { set: groupIds.map((gid) => ({ id: gid })) } : allowGroups ? undefined : { set: [] },
       },
       include: { groups: true },
     });
@@ -48,6 +53,13 @@ export class UsersService {
 
   async delete(id: string) {
     await this.prisma.user.delete({ where: { id } });
+  }
+
+  async adminRestaurants(userId: string) {
+    return this.prisma.restaurant.findMany({
+      where: { admins: { some: { userId } } },
+      orderBy: { name: 'asc' },
+    });
   }
 
   private hashPassword(plain: string) {

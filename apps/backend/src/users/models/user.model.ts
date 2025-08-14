@@ -1,6 +1,7 @@
 import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Role } from '@prisma/client';
 import { GroupModel } from '../../groups/models/group.model';
+import { RestaurantModel } from '../../restaurants/models/restaurant.model';
 
 registerEnumType(Role, { name: 'Role' });
 
@@ -29,4 +30,6 @@ export class UserModel {
 
   @Field(() => [GroupModel], { nullable: true })
   groups?: GroupModel[];
+  @Field(() => [RestaurantModel], { nullable: true })
+  adminRestaurants?: RestaurantModel[];
 }

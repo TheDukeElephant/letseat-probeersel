@@ -1,4 +1,4 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver, ResolveField, Parent } from '@nestjs/graphql';
 import { UsersService } from './users.service';
 import { UserModel } from './models/user.model';
 import { CreateUserInput } from './dto/create-user.input';
@@ -22,4 +22,9 @@ export class UsersResolver {
 
   @Mutation(() => Boolean)
   deleteUser(@Args('id') id: string) { return this.usersService.delete(id).then(() => true); }
+
+  @ResolveField('adminRestaurants')
+  adminRestaurants(@Parent() user: UserModel) {
+    return this.usersService.adminRestaurants(user.id);
+  }
 }

@@ -17,7 +17,7 @@ export class MenusResolver {
   @Query(() => [MenuModel]) menusByRestaurant(@Args('restaurantId', { type: () => ID }) restaurantId: string) { return this.menus.menusByRestaurant(restaurantId); }
   @Mutation(() => MenuModel) createMenu(@Args('data') data: CreateMenuInput) { return this.menus.createMenu(data); }
   @Mutation(() => MenuModel) updateMenu(@Args('data') data: UpdateMenuInput) { return this.menus.updateMenu(data.id, data); }
-  @Mutation(() => Boolean) deleteMenu(@Args('id', { type: () => ID }) id: string) { return this.menus.deleteMenu(id).then(() => true); }
+  @Mutation(() => Boolean) deleteMenu(@Args('id', { type: () => ID }) id: string) { return this.menus.deleteMenuWithInactivation(id); }
   @Mutation(() => MenuCategoryModel) createMenuCategory(@Args('data') data: CreateMenuCategoryInput) { return this.menus.createCategory(data); }
   @Mutation(() => MenuCategoryModel) updateMenuCategory(@Args('data') data: UpdateMenuCategoryInput) { return this.menus.updateCategory(data.id, data); }
   @Mutation(() => Boolean) deleteMenuCategory(@Args('id', { type: () => ID }) id: string) { return this.menus.deleteCategory(id).then(() => true); }

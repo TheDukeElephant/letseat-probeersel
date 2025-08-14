@@ -9,7 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { IconEdit, IconPlus, IconTrash, IconSearch, IconArrowsSort, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
-interface Group { id: string; name: string; createdAt: string; userCount: number; adminCount?: number; users?: { id: string; name: string; email: string }[]; admins?: { id: string }[] }
+interface Group { id: string; name: string; createdAt: string; userCount: number; adminCount?: number; users?: { id: string; name: string; email: string }[]; admins?: { id: string }[];
+  billingName?: string | null; billingEmail?: string | null; billingAddress?: string | null; billingPostalCode?: string | null; billingCity?: string | null; billingCountry?: string | null; vatNumber?: string | null; companyNumber?: string | null; iban?: string | null; bic?: string | null;
+}
 interface User { id: string; name: string; email: string }
 
 const API = (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:4000') + '/graphql';
@@ -40,7 +42,7 @@ export function GroupsClient() {
   const [draftAdminIds, setDraftAdminIds] = React.useState<Set<string>>(new Set());
   const PAGE_SIZE = 50;
   const [page, setPage] = React.useState(1);
-  type SortKey = 'id' | 'name' | 'members' | 'admins' | 'created';
+  type SortKey = 'id' | 'name' | 'members' | 'admins' | 'created' | 'status' | 'invoice';
   const [sortKey, setSortKey] = React.useState<SortKey>('created');
   const [sortDir, setSortDir] = React.useState<'asc'|'desc'>('desc');
 
@@ -63,7 +65,7 @@ export function GroupsClient() {
   async function load() {
     setLoading(true);
     try {
-  const data = await gql<{ groups: Group[] }>('query { groups { id name createdAt userCount adminCount } }');
+  const data = await gql<{ groups: Group[] }>('query { groups { id name createdAt userCount adminCount billingName billingEmail billingAddress billingPostalCode billingCity billingCountry vatNumber companyNumber iban bic } }');
       setGroups(data.groups);
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
   }
@@ -74,7 +76,7 @@ export function GroupsClient() {
     if (!newName.trim()) return;
     setAdding(true);
     try {
-      await gql('mutation($n:String!){ createGroup(name:$n){ id } }', { n: newName.trim() });
+  await gql('mutation($input:CreateGroupInput!){ createGroup(input:$input){ id } }', { input: { name: newName.trim() } });
       toast.success('Group created');
       setNewName('');
       load();
@@ -104,6 +106,12 @@ export function GroupsClient() {
         case 'members': va = a.userCount; vb = b.userCount; break;
         case 'admins': va = adminCountOf(a); vb = adminCountOf(b); break;
         case 'created': va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); break;
+        case 'status': va = adminCountOf(a) > 0 ? 1 : 0; vb = adminCountOf(b) > 0 ? 1 : 0; break;
+        case 'invoice': {
+          const hasA = !!(a.billingName || a.billingEmail || a.vatNumber || a.companyNumber || a.iban);
+          const hasB = !!(b.billingName || b.billingEmail || b.vatNumber || b.companyNumber || b.iban);
+          va = hasA ? 1 : 0; vb = hasB ? 1 : 0; break;
+        }
       }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
@@ -121,7 +129,7 @@ export function GroupsClient() {
 
   async function openGroup(g: Group) {
     try {
-      const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount adminCount users { id name email } admins { id } } }', { id: g.id });
+  const data = await gql<{ group: Group }>('query($id:String!){ group(id:$id){ id name createdAt userCount adminCount users { id name email } admins { id } billingName billingEmail billingAddress billingPostalCode billingCity billingCountry vatNumber companyNumber iban bic } }', { id: g.id });
       setEditing(data.group);
       // initialize draft from loaded group
       setDraftName(data.group.name);
@@ -150,8 +158,35 @@ export function GroupsClient() {
       const adminRemoves = Array.from(origAdminIds).filter(id => !draftAdmins.has(id));
 
       // 1) Update name if changed
-      if (draftName.trim() && draftName.trim() !== editing.name) {
-        await gql<{ updateGroup: Group }>('mutation($id:String!,$n:String!){ updateGroup(id:$id,name:$n){ id name } }', { id: editing.id, n: draftName.trim() });
+      const invoiceDirty = (
+        draftBillingName !== editing.billingName ||
+        draftBillingEmail !== editing.billingEmail ||
+        draftBillingAddress !== editing.billingAddress ||
+        draftBillingPostalCode !== editing.billingPostalCode ||
+        draftBillingCity !== editing.billingCity ||
+        draftBillingCountry !== editing.billingCountry ||
+        draftVatNumber !== editing.vatNumber ||
+        draftCompanyNumber !== editing.companyNumber ||
+        draftIban !== editing.iban ||
+        draftBic !== editing.bic
+      );
+      if ((draftName.trim() && draftName.trim() !== editing.name) || invoiceDirty) {
+        await gql<{ updateGroup: Group }>('mutation($id:String!,$input:UpdateGroupInput!){ updateGroup(id:$id,input:$input){ id name } }', {
+          id: editing.id,
+          input: {
+            name: draftName.trim() !== editing.name ? draftName.trim() : undefined,
+            billingName: draftBillingName || null,
+            billingEmail: draftBillingEmail || null,
+            billingAddress: draftBillingAddress || null,
+            billingPostalCode: draftBillingPostalCode || null,
+            billingCity: draftBillingCity || null,
+            billingCountry: draftBillingCountry || null,
+            vatNumber: draftVatNumber || null,
+            companyNumber: draftCompanyNumber || null,
+            iban: draftIban || null,
+            bic: draftBic || null,
+          }
+        });
       }
 
       // 2) Add members first
@@ -235,6 +270,33 @@ export function GroupsClient() {
     }
   }
 
+  // Invoice draft state
+  const [draftBillingName, setDraftBillingName] = React.useState<string>('');
+  const [draftBillingEmail, setDraftBillingEmail] = React.useState<string>('');
+  const [draftBillingAddress, setDraftBillingAddress] = React.useState<string>('');
+  const [draftBillingPostalCode, setDraftBillingPostalCode] = React.useState<string>('');
+  const [draftBillingCity, setDraftBillingCity] = React.useState<string>('');
+  const [draftBillingCountry, setDraftBillingCountry] = React.useState<string>('');
+  const [draftVatNumber, setDraftVatNumber] = React.useState<string>('');
+  const [draftCompanyNumber, setDraftCompanyNumber] = React.useState<string>('');
+  const [draftIban, setDraftIban] = React.useState<string>('');
+  const [draftBic, setDraftBic] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (editing) {
+      setDraftBillingName(editing.billingName || '');
+      setDraftBillingEmail(editing.billingEmail || '');
+      setDraftBillingAddress(editing.billingAddress || '');
+      setDraftBillingPostalCode(editing.billingPostalCode || '');
+      setDraftBillingCity(editing.billingCity || '');
+      setDraftBillingCountry(editing.billingCountry || '');
+      setDraftVatNumber(editing.vatNumber || '');
+      setDraftCompanyNumber(editing.companyNumber || '');
+      setDraftIban(editing.iban || '');
+      setDraftBic(editing.bic || '');
+    }
+  }, [editing]);
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleAdd} className="flex flex-col gap-4 md:flex-row md:items-end">
@@ -253,13 +315,14 @@ export function GroupsClient() {
               <TableHead><SortHeader label="Name" k="name" /></TableHead>
               <TableHead><SortHeader label="Members #" k="members" /></TableHead>
               <TableHead><SortHeader label="Admins #" k="admins" /></TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead><SortHeader label="Status" k="status" /></TableHead>
+              <TableHead><SortHeader label="Invoice" k="invoice" /></TableHead>
               <TableHead><SortHeader label="Created" k="created" /></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
+            {loading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
             {!loading && paged.map((g, i) => (
               <TableRow key={g.id}>
                 <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
@@ -275,12 +338,19 @@ export function GroupsClient() {
                   )}
                 </TableCell>
                 <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  { (g.billingName || g.billingEmail || g.vatNumber || g.companyNumber || g.iban) ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300">Yes</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-muted-foreground">No</Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => openGroup(g)}><IconEdit className="size-4" />Edit</Button>
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !sorted.length && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
+            {!loading && !sorted.length && <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -338,6 +408,51 @@ export function GroupsClient() {
                 </div>
               </div>
               <Separator />
+              <div className="space-y-2 px-1">
+                <h4 className="font-medium">Invoice Details (optional)</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Billing Name</label>
+                    <Input value={draftBillingName} onChange={e=>setDraftBillingName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Billing Email</label>
+                    <Input value={draftBillingEmail} onChange={e=>setDraftBillingEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs font-medium">Address</label>
+                    <Input value={draftBillingAddress} onChange={e=>setDraftBillingAddress(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Postal Code</label>
+                    <Input value={draftBillingPostalCode} onChange={e=>setDraftBillingPostalCode(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">City</label>
+                    <Input value={draftBillingCity} onChange={e=>setDraftBillingCity(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Country</label>
+                    <Input value={draftBillingCountry} onChange={e=>setDraftBillingCountry(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">VAT Number</label>
+                    <Input value={draftVatNumber} onChange={e=>setDraftVatNumber(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Company Number</label>
+                    <Input value={draftCompanyNumber} onChange={e=>setDraftCompanyNumber(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">IBAN</label>
+                    <Input value={draftIban} onChange={e=>setDraftIban(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">BIC</label>
+                    <Input value={draftBic} onChange={e=>setDraftBic(e.target.value)} />
+                  </div>
+                </div>
+              </div>
               <div className="space-y-3 px-1">
                 <h4 className="font-medium flex items-center gap-2">Add Members</h4>
                 <div className="relative">

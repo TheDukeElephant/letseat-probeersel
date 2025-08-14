@@ -21,5 +21,15 @@ export class CreateRestaurantInput {
   @Field({ nullable: true }) avgPrepTimeMins?: number;
   @Field({ nullable: true }) serviceFeePercent?: number;
   @Field({ nullable: true }) vatNumber?: string;
+  @Field({ nullable: true }) billingName?: string;
+  @Field({ nullable: true }) billingEmail?: string;
+  @Field({ nullable: true }) billingAddress?: string;
+  @Field({ nullable: true }) billingPostalCode?: string;
+  @Field({ nullable: true }) billingCity?: string;
+  @Field({ nullable: true }) billingCountry?: string;
+  @Field({ nullable: true }) companyNumber?: string;
+  @Field({ nullable: true }) iban?: string;
+  @Field({ nullable: true }) bic?: string;
   @Field({ nullable: true }) websiteUrl?: string;
+  @Field(() => [String], { nullable: true }) adminUserIds?: string[]; // optional initial admins with RESTAURANT role
 }

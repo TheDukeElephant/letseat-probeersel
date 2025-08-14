@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { IconPlus, IconTrash, IconEdit, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconEdit, IconChevronDown, IconChevronRight, IconStar, IconStarOff } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -32,15 +32,26 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
   const [selectedMenuId, setSelectedMenuId] = React.useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
   const [busy, setBusy] = React.useState(false);
-  // Track unsaved item enable/disable changes
-  const [pendingItemChanges, setPendingItemChanges] = React.useState<Record<string, { isEnabled: boolean }>>({});
-  const hasPendingItemChanges = Object.keys(pendingItemChanges).length > 0;
-  const [savingBatch, setSavingBatch] = React.useState(false);
+  // Track unsaved item field changes (enable/state/order) & staged CRUD
+  const [pendingItemChanges, setPendingItemChanges] = React.useState<Record<string, { isEnabled?: boolean; sortOrder?: number }>>({});
+  const [pendingCreatedItems, setPendingCreatedItems] = React.useState<Record<string, MenuItem & { __temp: true }>>({}); // temp id -> item
+  const [pendingDeletedItemIds, setPendingDeletedItemIds] = React.useState<Set<string>>(new Set());
+  const hasPendingItemChanges = React.useMemo(()=>{
+    return Object.keys(pendingItemChanges).length>0 || Object.keys(pendingCreatedItems).length>0 || pendingDeletedItemIds.size>0;
+  }, [pendingItemChanges, pendingCreatedItems, pendingDeletedItemIds]);
+  // Pending menu-level changes (e.g., activation toggles) requiring explicit save
+  const [pendingMenuChanges, setPendingMenuChanges] = React.useState<Record<string, { isActive: boolean }>>({});
+  const [pendingDeletedMenuIds, setPendingDeletedMenuIds] = React.useState<Set<string>>(new Set());
+  const hasPendingMenuChanges = React.useMemo(()=> Object.keys(pendingMenuChanges).length > 0 || pendingDeletedMenuIds.size>0, [pendingMenuChanges, pendingDeletedMenuIds]);
+  const hasAnyPending = hasPendingMenuChanges || hasPendingItemChanges;
+  const [savingAll, setSavingAll] = React.useState(false);
 
   // New / edit states
   const [menuForm, setMenuForm] = React.useState<{ id?: string; name: string; description: string; isActive: boolean }>({ name:'', description:'', isActive:true });
+  const [menuOriginal, setMenuOriginal] = React.useState<{ id?: string; name: string; description: string; isActive: boolean } | null>(null);
   const [categoryForm, setCategoryForm] = React.useState<{ id?: string; name: string }>({ name:'' });
-  const [itemForm, setItemForm] = React.useState<{ id?: string; categoryId?: string; name: string; description: string; price: string; isEnabled: boolean; stock: string; allergyTags: string }>({ name:'', description:'', price:'', isEnabled:true, stock:'', allergyTags:'' });
+  const [itemForm, setItemForm] = React.useState<{ id?: string; categoryId?: string; name: string; description: string; price: string; isEnabled: boolean; stock: string; allergyTags: string[] }>({ name:'', description:'', price:'', isEnabled:true, stock:'', allergyTags:[] });
+  const ALLERGY_TAG_OPTIONS = React.useMemo(()=>['Vega','Vegan','Glutenvrij','Lactosevrij','Halal'], []);
   const [mode, setMode] = React.useState<'menu'|'category'|'item'|null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -56,8 +67,43 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
   }
   React.useEffect(()=>{ if(open) loadMenus(); }, [open, restaurantId]);
 
-  function openCreateMenu() { setMode('menu'); setMenuForm({ name:'', description:'', isActive:true }); }
-  function openEditMenu(m: Menu) { setMode('menu'); setMenuForm({ id: m.id, name: m.name, description: m.description||'', isActive: m.isActive }); }
+  function openCreateMenu() { setMode('menu'); const snap = { name:'', description:'', isActive:true }; setMenuForm(snap); setMenuOriginal(snap); }
+  function openEditMenu(m: Menu) { setMode('menu'); const snap = { id: m.id, name: m.name, description: m.description||'', isActive: m.isActive }; setMenuForm(snap); setMenuOriginal(snap); }
+
+  function stageToggleMenuActive(m: Menu) {
+    setMenus(curr => {
+      // Enforce single active menu rule locally: if activating one, deactivate others.
+      const activating = !m.isActive;
+      if (activating) {
+        const updated = curr.map(menu => {
+          if (menu.id === m.id) return { ...menu, isActive: true };
+          if (menu.isActive) {
+            // record deactivation if previously active
+            setPendingMenuChanges(ch => ({ ...ch, [menu.id]: { isActive: false } }));
+            return { ...menu, isActive: false };
+          }
+          return menu;
+        });
+        setPendingMenuChanges(ch => ({ ...ch, [m.id]: { isActive: true } }));
+        return updated;
+      } else {
+        // Deactivating current menu: ensure at least one remains active or warn and cancel
+        const otherActive = curr.some(menu => menu.id !== m.id && menu.isActive);
+        if (!otherActive) { toast.error('At least one active menu is required. Activate another first.'); return curr; }
+        setPendingMenuChanges(ch => ({ ...ch, [m.id]: { isActive: false } }));
+        return curr.map(menu => menu.id === m.id ? { ...menu, isActive: false } : menu);
+      }
+    });
+  }
+
+  async function savePendingMenuChanges() {
+    /* legacy single-purpose save retained for potential future granular use (currently unused) */
+  }
+
+  const isMenuDirty = React.useMemo(()=>{
+    if(!menuOriginal) return !!menuForm.name || !!menuForm.description;
+    return menuForm.name !== menuOriginal.name || menuForm.description !== menuOriginal.description || menuForm.isActive !== menuOriginal.isActive;
+  }, [menuForm, menuOriginal]);
 
   async function saveMenu(e: React.FormEvent) {
     e.preventDefault(); if(!menuForm.name.trim()) { toast.error('Menu name required'); return; }
@@ -70,20 +116,82 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
         await gql(`mutation($data:CreateMenuInput!){ createMenu(data:$data){ id } }`, { data: { restaurantId, name: menuForm.name.trim(), description: menuForm.description.trim()||null } });
         toast.success('Menu created');
       }
-      setMode(null); await loadMenus();
+      setMode(null); setMenuOriginal(null); await loadMenus();
     } catch(e){ toast.error((e as Error).message); } finally { setBusy(false); }
   }
-  async function deleteMenu(id: string) { if(!confirm('Delete this menu?')) return; setBusy(true); try { await gql(`mutation($id:ID!){ deleteMenu(id:$id) }`, { id }); toast.success('Menu deleted'); if(selectedMenuId===id) setSelectedMenuId(null); await loadMenus(); } catch(e){ toast.error((e as Error).message);} finally { setBusy(false);} }
+  function stageDeleteMenu(id: string) {
+    const willDelete = !pendingDeletedMenuIds.has(id);
+    if (willDelete) {
+      if(!confirm('Delete this menu? It will be removed after you press Save Changes.')) return;
+      setPendingDeletedMenuIds(prev => new Set([...Array.from(prev), id]));
+      if(selectedMenuId===id) setSelectedMenuId(null);
+      // Remove any activation changes (not needed) & item pending changes for this menu
+      setPendingMenuChanges(ch => { const cp = { ...ch }; delete cp[id]; return cp; });
+      // Remove pending item changes related to this menu
+      setPendingItemChanges(ch => {
+        const next: typeof ch = {} as any;
+        const menu = menus.find(m=>m.id===id);
+        const itemIds = new Set(menu?.categories?.flatMap(c=>c.items?.map(i=>i.id)||[])||[]);
+        for (const [iid, val] of Object.entries(ch)) if(!itemIds.has(iid)) next[iid]=val; return next;
+      });
+    } else {
+      // Undo deletion staging
+      setPendingDeletedMenuIds(prev => { const s = new Set(Array.from(prev)); s.delete(id); return s; });
+    }
+  }
 
   function openCreateCategory() { setMode('category'); setCategoryForm({ name:'' }); }
   function openEditCategory(c: MenuCategory) { setMode('category'); setCategoryForm({ id: c.id, name: c.name }); }
+  // For now categories still persist immediately (could be staged similarly). Keeping as-is to limit scope.
   async function saveCategory(e:React.FormEvent) { e.preventDefault(); if(!categoryForm.name.trim() || !selectedMenuId){ toast.error('Category name required'); return; } setBusy(true); try { if(categoryForm.id){ await gql(`mutation($data:UpdateMenuCategoryInput!){ updateMenuCategory(data:$data){ id } }`, { data: { id: categoryForm.id, menuId: selectedMenuId, name: categoryForm.name.trim() } }); toast.success('Category updated'); } else { await gql(`mutation($data:CreateMenuCategoryInput!){ createMenuCategory(data:$data){ id } }`, { data: { menuId: selectedMenuId, name: categoryForm.name.trim() } }); toast.success('Category created'); } setMode(null); await loadMenus(); } catch(e){ toast.error((e as Error).message);} finally { setBusy(false);} }
   async function deleteCategory(id:string){ if(!confirm('Delete category and its items?')) return; setBusy(true); try { await gql(`mutation($id:ID!){ deleteMenuCategory(id:$id) }`, { id }); toast.success('Category deleted'); await loadMenus(); } catch(e){ toast.error((e as Error).message);} finally { setBusy(false);} }
 
-  function openCreateItem(categoryId: string) { setMode('item'); setItemForm({ categoryId, name:'', description:'', price:'', isEnabled:true, stock:'', allergyTags:'' }); }
-  function openEditItem(i: MenuItem) { setMode('item'); setItemForm({ id: i.id, categoryId: i.categoryId, name: i.name, description: i.description||'', price: String(i.price), isEnabled: i.isEnabled, stock: i.stock!=null? String(i.stock):'', allergyTags: (i as any).allergyTags?.join(', ') || '' }); }
-  async function saveItem(e:React.FormEvent) { e.preventDefault(); if(!itemForm.name.trim() || !itemForm.categoryId){ toast.error('Item name & category required'); return; } const priceNum = Number(itemForm.price); if(isNaN(priceNum) || priceNum < 0){ toast.error('Valid price required'); return; } const stockNum = itemForm.stock.trim()? Number(itemForm.stock): null; if(stockNum!=null && (isNaN(stockNum) || stockNum < 0)){ toast.error('Invalid stock'); return; } const allergyTagsArr = itemForm.allergyTags.split(',').map(t=>t.trim()).filter(Boolean); setBusy(true); try { if(itemForm.id){ await gql(`mutation($data:UpdateMenuItemInput!){ updateMenuItem(data:$data){ id } }`, { data: { id: itemForm.id, categoryId: itemForm.categoryId, name: itemForm.name.trim(), description: itemForm.description.trim()||null, price: priceNum, stock: stockNum, isEnabled: itemForm.isEnabled, allergyTags: allergyTagsArr } }); toast.success('Item updated'); } else { await gql(`mutation($data:CreateMenuItemInput!){ createMenuItem(data:$data){ id } }`, { data: { categoryId: itemForm.categoryId, name: itemForm.name.trim(), description: itemForm.description.trim()||null, price: priceNum, stock: stockNum, allergyTags: allergyTagsArr } }); toast.success('Item created'); } setMode(null); await loadMenus(); } catch(e){ toast.error((e as Error).message);} finally { setBusy(false);} }
-  async function deleteItem(id:string){ if(!confirm('Delete item?')) return; setBusy(true); try { await gql(`mutation($id:ID!){ deleteMenuItem(id:$id) }`, { id }); toast.success('Item deleted'); await loadMenus(); } catch(e){ toast.error((e as Error).message);} finally { setBusy(false);} }
+  function openCreateItem(categoryId: string) { setMode('item'); setItemForm({ categoryId, name:'', description:'', price:'', isEnabled:true, stock:'', allergyTags:[] }); }
+  function openEditItem(i: MenuItem) { setMode('item'); setItemForm({ id: i.id, categoryId: i.categoryId, name: i.name, description: i.description||'', price: String(i.price), isEnabled: i.isEnabled, stock: i.stock!=null? String(i.stock):'', allergyTags: (i as any).allergyTags || [] }); }
+  async function saveItem(e:React.FormEvent) { e.preventDefault(); if(!itemForm.name.trim() || !itemForm.categoryId){ toast.error('Item name & category required'); return; } const priceNum = Number(itemForm.price); if(isNaN(priceNum) || priceNum < 0){ toast.error('Valid price required'); return; } const stockNum = itemForm.stock.trim()? Number(itemForm.stock): null; if(stockNum!=null && (isNaN(stockNum) || stockNum < 0)){ toast.error('Invalid stock'); return; } const allergyTagsArr = itemForm.allergyTags.filter(Boolean);
+    // Stage create or update locally (for update, still immediate for simplicity)
+    if (!itemForm.id) {
+      const tempId = 'temp_'+Math.random().toString(36).slice(2);
+      setPendingCreatedItems(items => ({ ...items, [tempId]: { id: tempId, __temp: true, categoryId: itemForm.categoryId!, name: itemForm.name.trim(), description: itemForm.description.trim()||'', price: priceNum, imageUrl: undefined, isEnabled: true, stock: stockNum || undefined, allergyTags: allergyTagsArr, sortOrder: Object.keys(items).length } as any }));
+      // Insert into local menus tree
+      setMenus(ms => ms.map(m => ({ ...m, categories: m.categories?.map(c => {
+        if (c.id !== itemForm.categoryId) return c;
+        const newItems = [...(c.items||[]), { id: tempId, categoryId: c.id, name: itemForm.name.trim(), description: itemForm.description.trim()||'', price: priceNum, imageUrl: undefined, isEnabled: true, stock: stockNum||undefined, allergyTags: allergyTagsArr, sortOrder: (c.items?.length||0) }];
+        return { ...c, items: newItems };
+      }) })));
+      toast.success('Item staged (remember to Save Changes)');
+      setMode(null);
+    } else {
+      // For existing items keep previous immediate save behavior to limit scope
+      setBusy(true);
+      try {
+        await gql(`mutation($data:UpdateMenuItemInput!){ updateMenuItem(data:$data){ id } }`, { data: { id: itemForm.id, categoryId: itemForm.categoryId, name: itemForm.name.trim(), description: itemForm.description.trim()||null, price: priceNum, stock: stockNum, isEnabled: itemForm.isEnabled, allergyTags: allergyTagsArr } });
+        toast.success('Item updated');
+        await loadMenus();
+      } catch(e){ toast.error((e as Error).message);} finally { setBusy(false); }
+      setMode(null);
+    }
+  }
+
+  function toggleAllergyTag(tag: string) {
+    setItemForm(f => {
+      const has = f.allergyTags.includes(tag);
+      return { ...f, allergyTags: has ? f.allergyTags.filter(t=>t!==tag) : [...f.allergyTags, tag] };
+    });
+  }
+  async function deleteItem(id:string){ if(!confirm('Delete item?')) return; 
+    // If it's a temp (not saved yet) just remove from staging
+    if (pendingCreatedItems[id]) {
+      setPendingCreatedItems(items => { const cp = { ...items }; delete cp[id]; return cp; });
+      setMenus(ms => ms.map(m => ({ ...m, categories: m.categories?.map(c => ({ ...c, items: c.items?.filter(i=>i.id!==id) })) })));
+      toast.success('Staged item removed');
+      return;
+    }
+    // Otherwise stage deletion
+    setPendingDeletedItemIds(ids => new Set([...Array.from(ids), id]));
+    setMenus(ms => ms.map(m => ({ ...m, categories: m.categories?.map(c => ({ ...c, items: c.items?.filter(i=>i.id!==id) })) })));
+    toast.success('Item deletion staged (remember to Save Changes)');
+  }
 
   function toggleItemEnabled(item: MenuItem) {
     setPendingItemChanges(ch => {
@@ -127,20 +235,64 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
   }
 
   async function savePendingItemChanges() {
-    if (!hasPendingItemChanges) return;
-    setSavingBatch(true);
-    try {
-      const entries = Object.entries(pendingItemChanges).map(([id, changes]) => ({ id, ...changes }));
-      await gql(`mutation($data:BatchUpdateMenuItemsInput!){ batchUpdateMenuItems(data:$data) }`, { data: { items: entries } });
-      toast.success('Menu changes saved');
-      setPendingItemChanges({});
-      await loadMenus();
-    } catch(e){ toast.error((e as Error).message);} finally { setSavingBatch(false); }
+    /* legacy single-purpose save retained for potential future granular use (currently unused) */
   }
 
-  async function discardPendingItemChanges() {
-    setPendingItemChanges({});
-    await loadMenus();
+  async function saveAllChanges() {
+    if (!hasAnyPending || savingAll) return;
+    setSavingAll(true);
+    try {
+      // Apply menu activation changes first
+      const deletingMenus = pendingDeletedMenuIds;
+      if (Object.keys(pendingMenuChanges).length) {
+        for (const [id, changes] of Object.entries(pendingMenuChanges)) {
+          if (deletingMenus.has(id)) continue; // skip menus slated for deletion
+          const menu = menus.find(m=>m.id===id);
+          if (!menu) continue;
+          await gql(`mutation($data:UpdateMenuInput!){ updateMenu(data:$data){ id } }`, { data: { id, restaurantId: menu.restaurantId, name: menu.name, description: menu.description, isActive: changes.isActive } });
+        }
+      }
+      // Apply item visibility / ordering changes
+      if (hasPendingItemChanges) {
+        // Apply batch updates (enable/order) for existing items only
+        const menusBeingDeleted = new Set(Array.from(pendingDeletedMenuIds));
+        const updateEntries = Object.entries(pendingItemChanges).filter(([id]) => !pendingCreatedItems[id] && !pendingDeletedItemIds.has(id)).filter(([id]) => {
+          // ensure item's menu not being deleted
+          for (const m of menus) {
+            if (menusBeingDeleted.has(m.id)) continue;
+            if (m.categories?.some(c=>c.items?.some(i=>i.id===id))) return true;
+          }
+          return false;
+        }).map(([id, changes]) => ({ id, ...changes }));
+        if (updateEntries.length) {
+          await gql(`mutation($data:BatchUpdateMenuItemsInput!){ batchUpdateMenuItems(data:$data) }`, { data: { items: updateEntries } });
+        }
+        // Create new items
+        for (const temp of Object.values(pendingCreatedItems)) {
+          // Skip if its menu/category slated for deletion
+          const parentMenu = menus.find(m=>m.categories?.some(c=>c.id===temp.categoryId));
+            if (parentMenu && menusBeingDeleted.has(parentMenu.id)) continue;
+            await gql(`mutation($data:CreateMenuItemInput!){ createMenuItem(data:$data){ id } }`, { data: { categoryId: temp.categoryId, name: temp.name, description: temp.description || null, price: temp.price, stock: temp.stock ?? null, allergyTags: temp.allergyTags || [] } });
+        }
+        // Delete staged deletions
+        for (const delId of Array.from(pendingDeletedItemIds)) {
+          await gql(`mutation($id:ID!){ deleteMenuItem(id:$id) }`, { id: delId });
+        }
+      }
+      // Finally delete menus
+      if (pendingDeletedMenuIds.size) {
+        for (const menuId of Array.from(pendingDeletedMenuIds)) {
+          await gql(`mutation($id:ID!){ deleteMenu(id:$id) }`, { id: menuId });
+        }
+      }
+      toast.success('Changes saved');
+      setPendingMenuChanges({});
+      setPendingItemChanges({});
+      setPendingCreatedItems({});
+      setPendingDeletedItemIds(new Set());
+      setPendingDeletedMenuIds(new Set());
+      await loadMenus();
+    } catch(e){ toast.error((e as Error).message); } finally { setSavingAll(false); }
   }
 
   function currentMenu(): Menu | undefined { return menus.find(m=>m.id===selectedMenuId); }
@@ -166,16 +318,18 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
             <SortableContext items={c.items?.map(i=>({id:i.id})) || []} strategy={verticalListSortingStrategy}>
               <div className="space-y-2 pl-6">
                 {c.items && c.items.map(i => {
-                  const pending = pendingItemChanges[i.id];
-                  const effectiveEnabled = pending && pending.isEnabled !== undefined ? pending.isEnabled : i.isEnabled;
+          const pending = pendingItemChanges[i.id] || pendingItemChanges[i.id];
+          const effectiveEnabled = (pending && pending.isEnabled !== undefined ? pending.isEnabled : i.isEnabled);
+          const isTemp = !!(pendingCreatedItems as any)[i.id];
+          const isDeleted = pendingDeletedItemIds.has(i.id);
                   return (
                     <SortableItemWrapper key={i.id} item={{ id: i.id }}>
-                      <div className={`flex items-start justify-between gap-4 border rounded-md px-3 py-2 bg-background ${pending ? 'ring-2 ring-amber-400/60' : ''}`}>
+            <div className={`flex items-start justify-between gap-4 border rounded-md px-3 py-2 bg-background ${pending || isTemp || isDeleted ? 'ring-2 ring-amber-400/60' : ''} ${isDeleted? 'opacity-50 line-through':''}`}>
                         <div className="flex-1 min-w-0 cursor-grab">
                           <div className="flex items-center gap-2">
                             <span className="font-medium truncate">{i.name}</span>
                             {!effectiveEnabled && <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300">Disabled</Badge>}
-                            {pending && <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-300">Unsaved</Badge>}
+              {(pending || isTemp || isDeleted) && <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-300">{isTemp? 'New': isDeleted? 'Deleted':'Unsaved'}</Badge>}
                           </div>
                           <div className="text-xs text-muted-foreground line-clamp-2">{i.description || '—'}</div>
                           {(i as any).allergyTags?.length ? (
@@ -187,11 +341,13 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
                         </div>
                         <div className="flex flex-col gap-1 items-end">
                           <div className="flex gap-1">
-                            <Button size="sm" variant={effectiveEnabled? 'outline':'secondary'} disabled={savingBatch} onClick={()=>toggleItemEnabled(i)}>
+                            {!isDeleted && (
+                            <Button size="sm" variant={effectiveEnabled? 'outline':'secondary'} disabled={savingAll || isTemp} onClick={()=>toggleItemEnabled(i)}>
                               {effectiveEnabled ? 'Deactivate' : 'Activate'}
                             </Button>
-                            <Button size="sm" variant="outline" disabled={savingBatch} onClick={()=>openEditItem(i)}><IconEdit className="size-3"/></Button>
-                            <Button size="sm" variant="destructive" disabled={savingBatch} onClick={()=>deleteItem(i.id)}><IconTrash className="size-3"/></Button>
+                            )}
+                            {!isDeleted && <Button size="sm" variant="outline" disabled={savingAll || isTemp} onClick={()=>openEditItem(i)}><IconEdit className="size-3"/></Button>}
+                            <Button size="sm" variant="destructive" disabled={savingAll} onClick={()=>deleteItem(i.id)}>{isDeleted? 'Undo':'Delete'}</Button>
                           </div>
                           <div className="text-[10px] text-muted-foreground">Order: {(i.sortOrder ?? 0) + 1}</div>
                         </div>
@@ -225,14 +381,17 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
               <input type="checkbox" className="scale-110" checked={menuForm.isActive} onChange={e=>setMenuForm(f=>({...f, isActive:e.target.checked}))} /> Active
             </label>
           )}
+          <div className="text-[10px] text-muted-foreground">
+            {isMenuDirty ? <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span> : 'No changes yet'}
+          </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={busy}>{busy? 'Saving...': menuForm.id? 'Save Menu':'Create Menu'}</Button>
-            <Button type="button" variant="outline" onClick={()=>setMode(null)}>Cancel</Button>
+            <Button type="submit" disabled={busy || !isMenuDirty}>{busy? 'Saving...': menuForm.id? 'Save Changes':'Create Menu'}</Button>
+            <Button type="button" variant="outline" onClick={()=>{ if(isMenuDirty && !confirm('Discard unsaved changes?')) return; setMode(null); setMenuOriginal(null); }}>Cancel</Button>
           </div>
         </form>
       );
     }
-    if(mode==='category') {
+  if(mode==='category') {
       return (
         <form onSubmit={saveCategory} className="space-y-4">
           <div className="space-y-1">
@@ -240,7 +399,7 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
             <Input value={categoryForm.name} onChange={e=>setCategoryForm(f=>({...f, name:e.target.value}))} placeholder="Category name" />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={busy}>{busy? 'Saving...': categoryForm.id? 'Save Category':'Create Category'}</Button>
+      <Button type="submit" disabled={busy}>{busy? 'Saving...': categoryForm.id? 'Save Changes':'Create Category'}</Button>
             <Button type="button" variant="outline" onClick={()=>setMode(null)}>Cancel</Button>
           </div>
         </form>
@@ -267,8 +426,21 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
               <Input value={itemForm.stock} onChange={e=>setItemForm(f=>({...f, stock:e.target.value}))} placeholder="(optional)" />
             </div>
             <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium">Allergy Tags (comma separated)</label>
-              <Input value={itemForm.allergyTags} onChange={e=>setItemForm(f=>({...f, allergyTags:e.target.value}))} placeholder="nuts, dairy, gluten" />
+              <label className="text-sm font-medium">Allergy Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {ALLERGY_TAG_OPTIONS.map(tag => {
+                  const active = itemForm.allergyTags.includes(tag);
+                  return (
+                    <button
+                      type="button"
+                      key={tag}
+                      onClick={()=>toggleAllergyTag(tag)}
+                      className={`px-2 py-1 rounded-md text-xs font-medium border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/70 border-border text-foreground'} `}
+                    >{tag}</button>
+                  );
+                })}
+              </div>
+              {!itemForm.allergyTags.length && <div className="text-[10px] text-muted-foreground mt-1">No tags selected</div>}
             </div>
             {itemForm.id && (
               <div className="col-span-2">
@@ -277,7 +449,7 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
             )}
           </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={busy}>{busy? 'Saving...': itemForm.id? 'Save Item':'Create Item'}</Button>
+            <Button type="submit" disabled={busy}>{busy? 'Saving...': itemForm.id? 'Save Changes':'Create Item'}</Button>
             <Button type="button" variant="outline" onClick={()=>setMode(null)}>Cancel</Button>
           </div>
         </form>
@@ -296,26 +468,35 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
           <div className="md:col-span-1 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Menus</h3>
-              <Button size="sm" className="gap-1" onClick={openCreateMenu}><IconPlus className="size-3"/>New</Button>
+              <div className="flex gap-2 items-center">
+                <Button size="sm" className="gap-1" onClick={openCreateMenu}><IconPlus className="size-3"/>New</Button>
+              </div>
             </div>
             <div className="space-y-2">
               {loading && <div className="text-sm text-muted-foreground">Loading...</div>}
-              {!loading && menus.map(m => (
-                <div key={m.id} className={`border rounded-md px-3 py-2 flex flex-col gap-1 cursor-pointer ${selectedMenuId===m.id? 'bg-primary/5 border-primary':'bg-muted/30 hover:bg-muted/50'}`} onClick={()=>setSelectedMenuId(m.id)}>
+              {!loading && menus.map(m => {
+                const deleting = pendingDeletedMenuIds.has(m.id);
+                return (
+                <div key={m.id} className={`border rounded-md px-3 py-2 flex flex-col gap-1 cursor-pointer ${selectedMenuId===m.id? 'bg-primary/5 border-primary':'bg-muted/30 hover:bg-muted/50'} ${m.isActive? 'shadow-[0_0_0_1px_rgba(16,185,129,0.4)]':'opacity-90'} ${(pendingMenuChanges[m.id]||deleting)? 'ring-2 ring-amber-400/60':''} ${deleting? 'opacity-60 line-through':''}`} onClick={()=>{ if(deleting) return; setSelectedMenuId(m.id); }}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium truncate text-sm">{m.name}</span>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="outline" className="h-6 w-6" onClick={(e)=>{e.stopPropagation(); openEditMenu(m);}}><IconEdit className="size-3"/></Button>
-                      <Button size="icon" variant="destructive" className="h-6 w-6" onClick={(e)=>{e.stopPropagation(); deleteMenu(m.id);}}><IconTrash className="size-3"/></Button>
+                      {!deleting && (
+                      <Button size="icon" variant={m.isActive? 'secondary':'outline'} className={`h-6 w-6 ${m.isActive? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300':''}`} title={m.isActive? 'Stage deactivation':'Stage activation'} onClick={(e)=>{e.stopPropagation(); stageToggleMenuActive(m);}}>
+                        {m.isActive? <IconStar className="size-3"/> : <IconStarOff className="size-3"/>}
+                      </Button>
+                      )}
+                      {!deleting && <Button size="icon" variant="outline" className="h-6 w-6" onClick={(e)=>{e.stopPropagation(); openEditMenu(m);}}><IconEdit className="size-3"/></Button>}
+                      <Button size="icon" variant={deleting? 'secondary':'destructive'} className="h-6 w-6" title={deleting? 'Undo delete':'Stage delete'} onClick={(e)=>{e.stopPropagation(); stageDeleteMenu(m.id);}}><IconTrash className="size-3"/></Button>
                     </div>
                   </div>
                   <div className="text-[10px] uppercase tracking-wide flex gap-2">
-                    {m.isActive ? <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 h-4 px-1">Active</Badge>: <Badge className="bg-red-500/20 text-red-700 dark:text-red-300 h-4 px-1">Inactive</Badge>}
+                    {deleting ? <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 h-4 px-1">Deleted</Badge> : (m.isActive ? <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 h-4 px-1">Active</Badge>: <Badge className="bg-red-500/20 text-red-700 dark:text-red-300 h-4 px-1">Inactive</Badge>)}
                     {m.categories?.length ? <span className="text-muted-foreground">{m.categories.length} cat.</span>: <span className="text-muted-foreground">No categories</span>}
                   </div>
                 </div>
-              ))}
-              {!loading && !menus.length && <div className="text-xs text-muted-foreground">No menus yet</div>}
+              );})}
+              {!loading && !menus.length && <div className="text-xs text-muted-foreground">No menus yet (restaurant inactive until a populated active menu exists)</div>}
             </div>
           </div>
           <div className="md:col-span-2 space-y-6">
@@ -329,16 +510,10 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Categories</h3>
                   <div className="flex gap-2 items-center">
-                    {hasPendingItemChanges && (
-                      <>
-                        <Button size="sm" variant="outline" disabled={savingBatch} onClick={discardPendingItemChanges}>Discard</Button>
-                        <Button size="sm" disabled={savingBatch} onClick={savePendingItemChanges}>{savingBatch? 'Saving…':'Save Changes'}</Button>
-                      </>
-                    )}
                     <Button size="sm" onClick={openCreateCategory} className="gap-1"><IconPlus className="size-4"/>Category</Button>
                   </div>
                 </div>
-                {hasPendingItemChanges && <div className="text-xs text-amber-600 dark:text-amber-400">You have unsaved item visibility changes.</div>}
+                {hasAnyPending && <div className="text-xs text-amber-600 dark:text-amber-400">You have unsaved changes. Use the Save Changes button above.</div>}
                 <div className="space-y-4">
                   {currentMenu()?.categories?.map(c => <CategoryBlock key={c.id} c={c} />)}
                   {!currentMenu()?.categories?.length && <div className="text-sm text-muted-foreground">No categories yet</div>}
@@ -350,8 +525,15 @@ export function RestaurantMenusManager({ restaurantId, restaurantName, open, onO
             )}
           </div>
         </div>
-        <DialogFooter className="mt-4">
-          <Button type="button" variant="outline" onClick={()=>onOpenChange(false)}>Close</Button>
+        <DialogFooter className="mt-4 flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground mr-auto">
+            {hasAnyPending && !savingAll && <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>}
+            {savingAll && <span>Saving...</span>}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" disabled={!hasAnyPending || savingAll} onClick={saveAllChanges}>{savingAll? 'Saving…':'Save Changes'}</Button>
+            <Button type="button" variant="outline" onClick={()=>onOpenChange(false)}>Close</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,6 @@
 import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { CuisineType } from '@prisma/client';
+import { UserModel } from '../../users/models/user.model';
 
 registerEnumType(CuisineType, { name: 'CuisineType' });
 
@@ -28,7 +29,18 @@ export class RestaurantModel {
   @Field({ nullable: true }) avgPrepTimeMins?: number;
   @Field(() => Number, { nullable: true }) serviceFeePercent?: any; // Decimal -> exposed as Float
   @Field({ nullable: true }) vatNumber?: string;
+  // Invoice / payout details
+  @Field({ nullable: true }) billingName?: string;
+  @Field({ nullable: true }) billingEmail?: string;
+  @Field({ nullable: true }) billingAddress?: string;
+  @Field({ nullable: true }) billingPostalCode?: string;
+  @Field({ nullable: true }) billingCity?: string;
+  @Field({ nullable: true }) billingCountry?: string;
+  @Field({ nullable: true }) companyNumber?: string;
+  @Field({ nullable: true }) iban?: string;
+  @Field({ nullable: true }) bic?: string;
   @Field(() => Number, { nullable: true }) ratingAverage?: any; // Decimal -> exposed as Float
   @Field() ratingCount: number;
   @Field({ nullable: true }) websiteUrl?: string;
+  @Field(() => [UserModel], { nullable: true }) admins?: UserModel[];
 }

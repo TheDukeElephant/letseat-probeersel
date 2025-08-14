@@ -7,12 +7,14 @@ import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } 
 
 type UserLite = { id: string; createdAt: string }
 type GroupLite = { id: string; createdAt: string }
+type RestaurantLite = { id: string; createdAt: string }
 
 const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/graphql").replace(/\/$/, "")
 
 export function SectionCards() {
   const [users, setUsers] = React.useState<UserLite[] | null>(null)
   const [groups, setGroups] = React.useState<GroupLite[] | null>(null)
+  const [restaurants, setRestaurants] = React.useState<RestaurantLite[] | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState<boolean>(false)
 
@@ -24,14 +26,15 @@ export function SectionCards() {
         const res = await fetch(API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: `query DashboardLite { users { id createdAt } groups { id createdAt } }` }),
+          body: JSON.stringify({ query: `query DashboardLite { users { id createdAt } groups { id createdAt } restaurants { id createdAt } }` }),
           cache: 'no-store'
         })
         const json = await res.json()
         if (!isMounted) return
         if (json.errors) throw new Error(json.errors[0]?.message || 'Failed to load users')
-  setUsers(json.data.users)
-  setGroups(json.data.groups)
+        setUsers(json.data.users)
+        setGroups(json.data.groups)
+        setRestaurants(json.data.restaurants)
       } catch (e) {
         if (isMounted) setError((e as Error).message)
       } finally {
@@ -44,6 +47,7 @@ export function SectionCards() {
 
   const totalUsers = users?.length || 0
   const totalGroups = groups?.length || 0
+  const totalRestaurants = restaurants?.length || 0
   // Monthly growth calculation: compare new users this month vs last month
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -82,8 +86,24 @@ export function SectionCards() {
   const groupsGrowthUp = (groupsGrowthPct ?? 0) >= 0
   const groupsGrowthLabel = groupsGrowthPct === null ? '—' : `${groupsGrowthUp ? '+' : ''}${groupsGrowthPct.toFixed(1)}%`
 
+  // Restaurant monthly stats
+  let thisMonthRestaurants = 0, lastMonthRestaurants = 0
+  if (restaurants) {
+    for (const r of restaurants) {
+      const d = new Date(r.createdAt)
+      if (d >= monthStart) thisMonthRestaurants++
+      else if (d >= lastMonthStart && d <= lastMonthEnd) lastMonthRestaurants++
+    }
+  }
+  let restaurantsGrowthPct: number | null = null
+  if (thisMonthRestaurants === 0 && lastMonthRestaurants === 0) restaurantsGrowthPct = 0
+  else if (lastMonthRestaurants === 0 && thisMonthRestaurants > 0) restaurantsGrowthPct = 100
+  else if (lastMonthRestaurants > 0) restaurantsGrowthPct = ((thisMonthRestaurants - lastMonthRestaurants) / lastMonthRestaurants) * 100
+  const restaurantsGrowthUp = (restaurantsGrowthPct ?? 0) >= 0
+  const restaurantsGrowthLabel = restaurantsGrowthPct === null ? '—' : `${restaurantsGrowthUp ? '+' : ''}${restaurantsGrowthPct.toFixed(1)}%`
+
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
+  <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs sm:grid-cols-2 lg:grid-cols-5 lg:px-6">
       {/* Revenue (placeholder static) */}
       <Card className="@container/card">
         <CardHeader>
@@ -167,6 +187,36 @@ export function SectionCards() {
               </div>
               <div className="text-muted-foreground">
                 {`New groups this month: ${thisMonthGroups} (last month: ${lastMonthGroups})`}
+              </div>
+            </>
+          )}
+        </CardFooter>
+      </Card>
+      {/* Restaurants (dynamic) */}
+      <Card className="@container/card">
+        <CardHeader>
+          <CardDescription>Restaurants</CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+            {loading ? '…' : totalRestaurants.toLocaleString()}
+          </CardTitle>
+          <CardAction>
+            <Badge variant="outline">
+              {restaurantsGrowthUp ? <IconTrendingUp /> : <IconTrendingDown />}
+              {loading ? '…' : restaurantsGrowthLabel}
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+          {error ? (
+            <div className="text-destructive">{error}</div>
+          ) : (
+            <>
+              <div className="line-clamp-1 flex gap-2 font-medium">
+                {loading ? 'Calculating…' : restaurantsGrowthUp ? 'Restaurant onboarding up' : 'Restaurant onboarding down'}
+                {restaurantsGrowthUp ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
+              </div>
+              <div className="text-muted-foreground">
+                {`New this month: ${thisMonthRestaurants} (last month: ${lastMonthRestaurants})`}
               </div>
             </>
           )}

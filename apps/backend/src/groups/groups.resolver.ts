@@ -1,8 +1,39 @@
-import { Args, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Parent, Query, ResolveField, Resolver, Field, InputType } from '@nestjs/graphql';
 import { GroupsService } from './groups.service';
 import { GroupModel } from './models/group.model';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserModel } from '../users/models/user.model';
+
+@InputType()
+class CreateGroupInput {
+  @Field(() => String)
+  name: string;
+  @Field(() => String, { nullable: true }) billingName?: string | null;
+  @Field(() => String, { nullable: true }) billingEmail?: string | null;
+  @Field(() => String, { nullable: true }) billingAddress?: string | null;
+  @Field(() => String, { nullable: true }) billingPostalCode?: string | null;
+  @Field(() => String, { nullable: true }) billingCity?: string | null;
+  @Field(() => String, { nullable: true }) billingCountry?: string | null;
+  @Field(() => String, { nullable: true }) vatNumber?: string | null;
+  @Field(() => String, { nullable: true }) companyNumber?: string | null;
+  @Field(() => String, { nullable: true }) iban?: string | null;
+  @Field(() => String, { nullable: true }) bic?: string | null;
+}
+
+@InputType()
+class UpdateGroupInput {
+  @Field(() => String, { nullable: true }) name?: string;
+  @Field(() => String, { nullable: true }) billingName?: string | null;
+  @Field(() => String, { nullable: true }) billingEmail?: string | null;
+  @Field(() => String, { nullable: true }) billingAddress?: string | null;
+  @Field(() => String, { nullable: true }) billingPostalCode?: string | null;
+  @Field(() => String, { nullable: true }) billingCity?: string | null;
+  @Field(() => String, { nullable: true }) billingCountry?: string | null;
+  @Field(() => String, { nullable: true }) vatNumber?: string | null;
+  @Field(() => String, { nullable: true }) companyNumber?: string | null;
+  @Field(() => String, { nullable: true }) iban?: string | null;
+  @Field(() => String, { nullable: true }) bic?: string | null;
+}
 
 @Resolver(() => GroupModel)
 export class GroupsResolver {
@@ -19,8 +50,8 @@ export class GroupsResolver {
   }
 
   @Mutation(() => GroupModel)
-  createGroup(@Args('name') name: string) {
-    return this.groups.create(name);
+  createGroup(@Args('input') input: CreateGroupInput) {
+    return this.groups.create(input);
   }
 
   @Mutation(() => Boolean)
@@ -29,8 +60,8 @@ export class GroupsResolver {
   }
 
   @Mutation(() => GroupModel)
-  updateGroup(@Args('id') id: string, @Args('name') name: string) {
-    return this.groups.update(id, name);
+  updateGroup(@Args('id') id: string, @Args('input') input: UpdateGroupInput) {
+    return this.groups.update(id, input);
   }
 
   @Mutation(() => GroupModel)
