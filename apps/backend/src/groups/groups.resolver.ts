@@ -99,25 +99,60 @@ export class GroupsResolver {
 
   @Mutation(() => GroupModel)
   async addGroupAdmin(@Args('groupId') groupId: string, @Args('userId') userId: string) {
-    await this.prisma.groupAdmin.upsert({
-      where: { userId_groupId: { userId, groupId } },
-      update: {},
-      create: { groupId, userId },
+    // Enforce invariants inside a transaction so checks and creation are atomic.
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Ensure the user is already a member of the group.
+      const membership = await tx.group.findFirst({
+        where: { id: groupId, users: { some: { id: userId } } },
+        select: { id: true },
+      });
+      if (!membership) {
+        throw new Error('User must be a member of the group before becoming an admin');
+      }
+
+      // 2. Get current counts.
+      const [memberCount, adminCount] = await Promise.all([
+        tx.user.count({ where: { groups: { some: { id: groupId } } } }),
+        tx.groupAdmin.count({ where: { groupId } }),
+      ]);
+
+      // 3. Prevent more admins than members (strictly greater not allowed; equality allowed if every member an admin).
+      if (adminCount >= memberCount) {
+        throw new Error('Cannot add admin: admin count would exceed member count');
+      }
+
+      // 4. Upsert the admin record (idempotent promote).
+      await tx.groupAdmin.upsert({
+        where: { userId_groupId: { userId, groupId } },
+        update: {},
+        create: { groupId, userId },
+      });
     });
     return this.groups.findOne(groupId);
   }
 
   @Mutation(() => GroupModel)
   async removeGroupAdmin(@Args('groupId') groupId: string, @Args('userId') userId: string) {
-    const [adminCount, membersCount] = await Promise.all([
-      this.prisma.groupAdmin.count({ where: { groupId } }),
-      this.prisma.user.count({ where: { groups: { some: { id: groupId } } } }),
-    ]);
-    const isAdmin = await this.prisma.groupAdmin.findUnique({ where: { userId_groupId: { groupId, userId } } });
-    if (isAdmin && adminCount <= 1 && membersCount > 0) {
-      throw new Error('Cannot remove the last group admin while members remain');
-    }
-    await this.prisma.groupAdmin.delete({ where: { userId_groupId: { userId, groupId } } }).catch(() => {});
+    // Transaction: remove admin; if now zero admins but members remain, promote a random member.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.groupAdmin.delete({ where: { userId_groupId: { userId, groupId } } }).catch(() => {});
+      const remainingAdmins = await tx.groupAdmin.count({ where: { groupId } });
+      if (remainingAdmins === 0) {
+        const members = await tx.user.findMany({ where: { groups: { some: { id: groupId } } }, select: { id: true } });
+        if (members.length > 0) {
+          const random = members[Math.floor(Math.random() * members.length)];
+            // Only create if not already (defensive) – but we know remainingAdmins === 0
+          await tx.groupAdmin.create({ data: { groupId, userId: random.id } });
+        }
+      }
+    });
     return this.groups.findOne(groupId);
+  }
+
+  // One-off / maintenance mutation to clean historical data inconsistencies.
+  // In production this should be protected (auth/role) – exposed here for admin tooling.
+  @Mutation(() => Number)
+  async enforceGroupAdminInvariants() {
+    return this.groups.enforceAdminInvariants();
   }
 }

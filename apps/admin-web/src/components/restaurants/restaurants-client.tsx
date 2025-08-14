@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { IconPlus, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconArrowsSort, IconInfoCircle, IconCheck, IconX } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconArrowsSort, IconInfoCircle, IconCheck, IconX, IconList } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RestaurantMenusManager } from './restaurant-menus-manager';
@@ -229,7 +229,7 @@ export function RestaurantsClient() {
         <TableCell>{!r.admins?.length ? <span className="text-xs text-muted-foreground">None</span> : <Badge variant="outline" className="text-[10px]">{r.admins.length}</Badge>}</TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button size="sm" variant="outline" className="gap-1" onClick={()=>openEdit(r)}><IconEdit className="size-4"/>Edit</Button>
-                  <Button size="sm" variant="secondary" className="gap-1" onClick={()=>{ setMenusRestaurant(r); setMenusOpen(true); }}>Menus</Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={()=>{ setMenusRestaurant(r); setMenusOpen(true); }}><IconList className="size-4"/>Menus</Button>
                 </TableCell>
               </TableRow>
             ))}

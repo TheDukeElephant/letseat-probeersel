@@ -180,6 +180,7 @@ type Mutation {
   deleteMenuItem(id: ID!): Boolean!
   deleteRestaurant(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
+  enforceGroupAdminInvariants: Float!
   removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
   removeRestaurantAdmin(restaurantId: String!, userId: String!): Boolean!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!

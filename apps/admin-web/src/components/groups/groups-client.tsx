@@ -281,6 +281,7 @@ export function GroupsClient() {
   const [draftCompanyNumber, setDraftCompanyNumber] = React.useState<string>('');
   const [draftIban, setDraftIban] = React.useState<string>('');
   const [draftBic, setDraftBic] = React.useState<string>('');
+  const [showInvoice, setShowInvoice] = React.useState(false);
 
   React.useEffect(() => {
     if (editing) {
@@ -294,6 +295,9 @@ export function GroupsClient() {
       setDraftCompanyNumber(editing.companyNumber || '');
       setDraftIban(editing.iban || '');
       setDraftBic(editing.bic || '');
+  // Auto-expand invoice section if any field has a value.
+  const anyBilling = [editing.billingName, editing.billingEmail, editing.billingAddress, editing.billingPostalCode, editing.billingCity, editing.billingCountry, editing.vatNumber, editing.companyNumber, editing.iban, editing.bic].some(Boolean);
+  setShowInvoice(anyBilling);
     }
   }, [editing]);
 
@@ -316,13 +320,13 @@ export function GroupsClient() {
               <TableHead><SortHeader label="Members #" k="members" /></TableHead>
               <TableHead><SortHeader label="Admins #" k="admins" /></TableHead>
               <TableHead><SortHeader label="Status" k="status" /></TableHead>
-              <TableHead><SortHeader label="Invoice" k="invoice" /></TableHead>
-              <TableHead><SortHeader label="Created" k="created" /></TableHead>
+              {/* Replaced Created column with Invoices status; removed separate Invoice column */}
+              <TableHead><SortHeader label="Invoices" k="invoice" /></TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
+            {loading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Loading...</TableCell></TableRow>}
             {!loading && paged.map((g, i) => (
               <TableRow key={g.id}>
                 <TableCell className="text-xs text-muted-foreground">{startIdx + i + 1}</TableCell>
@@ -337,12 +341,11 @@ export function GroupsClient() {
                     <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-500/10 dark:text-red-300">Inactive</Badge>
                   )}
                 </TableCell>
-                <TableCell>{new Date(g.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell>
-                  { (g.billingName || g.billingEmail || g.vatNumber || g.companyNumber || g.iban) ? (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300">Yes</Badge>
+                  {(g.billingName || g.billingEmail || g.vatNumber || g.companyNumber || g.iban) ? (
+                    <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">Enabled</Badge>
                   ) : (
-                    <Badge variant="secondary" className="text-muted-foreground">No</Badge>
+                    <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-500/10 dark:text-red-300">Disabled</Badge>
                   )}
                 </TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
@@ -350,7 +353,7 @@ export function GroupsClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && !sorted.length && <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
+            {!loading && !sorted.length && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No groups</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -409,49 +412,54 @@ export function GroupsClient() {
               </div>
               <Separator />
               <div className="space-y-2 px-1">
-                <h4 className="font-medium">Invoice Details (optional)</h4>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Billing Name</label>
-                    <Input value={draftBillingName} onChange={e=>setDraftBillingName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Billing Email</label>
-                    <Input value={draftBillingEmail} onChange={e=>setDraftBillingEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-xs font-medium">Address</label>
-                    <Input value={draftBillingAddress} onChange={e=>setDraftBillingAddress(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Postal Code</label>
-                    <Input value={draftBillingPostalCode} onChange={e=>setDraftBillingPostalCode(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">City</label>
-                    <Input value={draftBillingCity} onChange={e=>setDraftBillingCity(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Country</label>
-                    <Input value={draftBillingCountry} onChange={e=>setDraftBillingCountry(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">VAT Number</label>
-                    <Input value={draftVatNumber} onChange={e=>setDraftVatNumber(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Company Number</label>
-                    <Input value={draftCompanyNumber} onChange={e=>setDraftCompanyNumber(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">IBAN</label>
-                    <Input value={draftIban} onChange={e=>setDraftIban(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">BIC</label>
-                    <Input value={draftBic} onChange={e=>setDraftBic(e.target.value)} />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Invoice Details (optional)</h4>
+                  <button type="button" onClick={()=>setShowInvoice(s=>!s)} className="text-xs underline text-muted-foreground hover:text-foreground">{showInvoice ? 'Hide':'Show'}</button>
                 </div>
+                {showInvoice && (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Billing Name</label>
+                      <Input value={draftBillingName} onChange={e=>setDraftBillingName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Billing Email</label>
+                      <Input value={draftBillingEmail} onChange={e=>setDraftBillingEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-xs font-medium">Address</label>
+                      <Input value={draftBillingAddress} onChange={e=>setDraftBillingAddress(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Postal Code</label>
+                      <Input value={draftBillingPostalCode} onChange={e=>setDraftBillingPostalCode(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">City</label>
+                      <Input value={draftBillingCity} onChange={e=>setDraftBillingCity(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Country</label>
+                      <Input value={draftBillingCountry} onChange={e=>setDraftBillingCountry(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">VAT Number</label>
+                      <Input value={draftVatNumber} onChange={e=>setDraftVatNumber(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">Company Number</label>
+                      <Input value={draftCompanyNumber} onChange={e=>setDraftCompanyNumber(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">IBAN</label>
+                      <Input value={draftIban} onChange={e=>setDraftIban(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium">BIC</label>
+                      <Input value={draftBic} onChange={e=>setDraftBic(e.target.value)} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-3 px-1">
                 <h4 className="font-medium flex items-center gap-2">Add Members</h4>
