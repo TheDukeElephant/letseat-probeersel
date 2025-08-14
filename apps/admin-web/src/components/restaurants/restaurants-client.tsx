@@ -8,6 +8,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { IconPlus, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconArrowsSort } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RestaurantMenusManager } from './restaurant-menus-manager';
 
 interface Restaurant { id: string; name: string; slug: string; email: string; phone?: string; cuisine?: string; isActive: boolean; isFeatured: boolean; createdAt: string; updatedAt: string; }
 
@@ -33,6 +34,8 @@ export function RestaurantsClient() {
   const [editing, setEditing] = React.useState<Restaurant | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [menusOpen, setMenusOpen] = React.useState(false);
+  const [menusRestaurant, setMenusRestaurant] = React.useState<Restaurant | null>(null);
 
   // Form state
   const [name, setName] = React.useState('');
@@ -42,12 +45,13 @@ export function RestaurantsClient() {
   const [cuisine, setCuisine] = React.useState<string>('UNSPECIFIED');
   const [isFeatured, setIsFeatured] = React.useState(false);
   const [active, setActive] = React.useState(true);
+  const [allergyTags, setAllergyTags] = React.useState('');
 
   function resetForm(r?: Restaurant) {
     if (!r) {
-      setName(''); setSlug(''); setEmail(''); setPhone(''); setCuisine('UNSPECIFIED'); setIsFeatured(false); setActive(true); setConfirmDelete(false);
+      setName(''); setSlug(''); setEmail(''); setPhone(''); setCuisine('UNSPECIFIED'); setIsFeatured(false); setActive(true); setConfirmDelete(false); setAllergyTags('');
     } else {
-      setName(r.name); setSlug(r.slug); setEmail(r.email); setPhone(r.phone || ''); setCuisine(r.cuisine || 'UNSPECIFIED'); setIsFeatured(r.isFeatured); setActive(r.isActive); setConfirmDelete(false);
+      setName(r.name); setSlug(r.slug); setEmail(r.email); setPhone(r.phone || ''); setCuisine(r.cuisine || 'UNSPECIFIED'); setIsFeatured(r.isFeatured); setActive(r.isActive); setConfirmDelete(false); setAllergyTags((r as any).allergyTags?.join(', ') || '');
     }
   }
 
@@ -105,10 +109,10 @@ export function RestaurantsClient() {
     setSaving(true);
     try {
       if (editing) {
-        await gql(`mutation($data:UpdateRestaurantInput!){ updateRestaurant(data:$data){ id } }`, { data: { id: editing.id, name: name.trim(), slug: slug.trim(), email: email.trim(), phone: phone || null, cuisine: cuisine !== 'UNSPECIFIED'? cuisine: null, isFeatured: isFeatured, isActive: active } });
+        await gql(`mutation($data:UpdateRestaurantInput!){ updateRestaurant(data:$data){ id } }`, { data: { id: editing.id, name: name.trim(), slug: slug.trim(), email: email.trim(), phone: phone || null, cuisine: cuisine !== 'UNSPECIFIED'? cuisine: null, isFeatured: isFeatured, isActive: active, allergyTags: allergyTags.split(',').map(t=>t.trim()).filter(Boolean) } });
         toast.success('Restaurant updated');
       } else {
-        await gql(`mutation($data:CreateRestaurantInput!){ createRestaurant(data:$data){ id } }`, { data: { name: name.trim(), slug: slug.trim(), email: email.trim(), phone: phone || null, cuisine: cuisine !== 'UNSPECIFIED'? cuisine: null, isFeatured, } });
+        await gql(`mutation($data:CreateRestaurantInput!){ createRestaurant(data:$data){ id } }`, { data: { name: name.trim(), slug: slug.trim(), email: email.trim(), phone: phone || null, cuisine: cuisine !== 'UNSPECIFIED'? cuisine: null, isFeatured, allergyTags: allergyTags.split(',').map(t=>t.trim()).filter(Boolean) } });
         toast.success('Restaurant created');
       }
       setOpen(false); await load();
@@ -155,6 +159,7 @@ export function RestaurantsClient() {
                 <TableCell>{new Date(r.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right flex gap-2 justify-end">
                   <Button size="sm" variant="outline" className="gap-1" onClick={()=>openEdit(r)}><IconEdit className="size-4"/>Edit</Button>
+                  <Button size="sm" variant="secondary" className="gap-1" onClick={()=>{ setMenusRestaurant(r); setMenusOpen(true); }}>Menus</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -194,6 +199,10 @@ export function RestaurantsClient() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium">Allergy Tags (comma separated)</label>
+                <Input value={allergyTags} onChange={e=>setAllergyTags(e.target.value)} placeholder="nuts, dairy, gluten" />
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Flags</label>
                 <div className="flex flex-col gap-2 text-sm">
@@ -225,6 +234,14 @@ export function RestaurantsClient() {
           </form>
         </DialogContent>
       </Dialog>
+      {menusRestaurant && (
+        <RestaurantMenusManager
+          restaurantId={menusRestaurant.id}
+          restaurantName={menusRestaurant.name}
+          open={menusOpen}
+          onOpenChange={(o)=>{ setMenusOpen(o); if(!o) setMenusRestaurant(null); }}
+        />
+      )}
     </div>
   );
 }

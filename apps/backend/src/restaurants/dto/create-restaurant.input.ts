@@ -8,6 +8,7 @@ export class CreateRestaurantInput {
   @Field() email: string;
   @Field({ nullable: true }) phone?: string;
   @Field({ nullable: true }) description?: string;
+  @Field(() => [String], { nullable: true }) allergyTags?: string[];
   @Field() address: string;
   @Field({ nullable: true }) lat?: number;
   @Field({ nullable: true }) lng?: number;

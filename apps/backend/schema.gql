@@ -2,8 +2,40 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input BatchUpdateMenuItemInput {
+  id: ID!
+  isEnabled: Boolean
+  sortOrder: Float
+}
+
+input BatchUpdateMenuItemsInput {
+  items: [BatchUpdateMenuItemInput!]!
+}
+
+input CreateMenuCategoryInput {
+  menuId: ID!
+  name: String!
+}
+
+input CreateMenuInput {
+  description: String
+  name: String!
+  restaurantId: ID!
+}
+
+input CreateMenuItemInput {
+  allergyTags: [String!]
+  categoryId: ID!
+  description: String
+  imageUrl: String
+  name: String!
+  price: Float!
+  stock: Float
+}
+
 input CreateRestaurantInput {
   address: String!
+  allergyTags: [String!]
   avgPrepTimeMins: Float
   cuisine: CuisineType
   deliveryRadiusKm: Float
@@ -62,18 +94,62 @@ type GroupModel {
   users: [UserModel!]
 }
 
+type MenuCategoryModel {
+  id: ID!
+  items: [MenuItemModel!]
+  menuId: String!
+  name: String!
+  sortOrder: Float!
+}
+
+type MenuItemModel {
+  allergyTags: [String!]!
+  categoryId: String!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  imageUrl: String
+  isEnabled: Boolean!
+  name: String!
+  price: Float!
+  sortOrder: Float!
+  stock: Float
+  updatedAt: DateTime!
+}
+
+type MenuModel {
+  categories: [MenuCategoryModel!]
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  isActive: Boolean!
+  name: String!
+  restaurantId: String!
+  updatedAt: DateTime!
+}
+
 type Mutation {
   addGroupAdmin(groupId: String!, userId: String!): GroupModel!
   addUserToGroup(groupId: String!, userId: String!): GroupModel!
+  batchUpdateMenuItems(data: BatchUpdateMenuItemsInput!): Boolean!
   createGroup(name: String!): GroupModel!
+  createMenu(data: CreateMenuInput!): MenuModel!
+  createMenuCategory(data: CreateMenuCategoryInput!): MenuCategoryModel!
+  createMenuItem(data: CreateMenuItemInput!): MenuItemModel!
   createRestaurant(data: CreateRestaurantInput!): RestaurantModel!
   createUser(data: CreateUserInput!): UserModel!
   deleteGroup(id: String!): Boolean!
+  deleteMenu(id: ID!): Boolean!
+  deleteMenuCategory(id: ID!): Boolean!
+  deleteMenuItem(id: ID!): Boolean!
   deleteRestaurant(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
   removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
   updateGroup(id: String!, name: String!): GroupModel!
+  updateMenu(data: UpdateMenuInput!): MenuModel!
+  updateMenuCategory(data: UpdateMenuCategoryInput!): MenuCategoryModel!
+  updateMenuItem(data: UpdateMenuItemInput!): MenuItemModel!
   updateRestaurant(data: UpdateRestaurantInput!): RestaurantModel!
   updateUser(data: UpdateUserInput!): UserModel!
 }
@@ -81,6 +157,7 @@ type Mutation {
 type Query {
   group(id: String!): GroupModel
   groups: [GroupModel!]!
+  menusByRestaurant(restaurantId: ID!): [MenuModel!]!
   restaurant(id: String!): RestaurantModel
   restaurants: [RestaurantModel!]!
   user(id: String!): UserModel
@@ -89,6 +166,7 @@ type Query {
 
 type RestaurantModel {
   address: String!
+  allergyTags: [String!]!
   avgPrepTimeMins: Float
   createdAt: DateTime!
   cuisine: CuisineType
@@ -120,8 +198,36 @@ enum Role {
   USER
 }
 
+input UpdateMenuCategoryInput {
+  id: ID!
+  menuId: ID
+  name: String
+  sortOrder: Float
+}
+
+input UpdateMenuInput {
+  description: String
+  id: ID!
+  isActive: Boolean
+  name: String
+  restaurantId: ID
+}
+
+input UpdateMenuItemInput {
+  allergyTags: [String!]
+  categoryId: ID
+  description: String
+  id: ID!
+  imageUrl: String
+  isEnabled: Boolean
+  name: String
+  price: Float
+  stock: Float
+}
+
 input UpdateRestaurantInput {
   address: String
+  allergyTags: [String!]
   avgPrepTimeMins: Float
   cuisine: CuisineType
   deliveryRadiusKm: Float

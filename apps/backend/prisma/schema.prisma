@@ -94,6 +94,7 @@ model Restaurant {
   email       String   @unique
   phone       String?
   description String?
+  allergyTags String[] @default([])      // Aggregated allergy tags present across menus (editable)
   address     String                    // human-readable address
   lat         Decimal?                  // PostGIS POINT (stored as decimal here)
   lng         Decimal?
@@ -206,6 +207,8 @@ model MenuItem {
   imageUrl    String?
   isEnabled   Boolean  @default(true)
   stock       Int?
+  allergyTags String[] @default([])   // e.g. ["NUTS","DAIRY"]
+  sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

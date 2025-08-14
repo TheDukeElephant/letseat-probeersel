@@ -6,6 +6,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
+import { MenusModule } from './menus/menus.module';
 
 // Later: AuthModule, OrdersModule, RestaurantsModule, MenusModule, GroupsModule, PaymentsModule
 
@@ -21,6 +22,7 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
   UsersModule,
   GroupsModule,
   RestaurantsModule,
+  MenusModule,
   ],
   controllers: [],
   providers: [PrismaService],

@@ -12,6 +12,7 @@ export class RestaurantModel {
   @Field() email: string;
   @Field({ nullable: true }) phone?: string;
   @Field({ nullable: true }) description?: string;
+  @Field(() => [String]) allergyTags: string[];
   @Field() address: string;
   @Field(() => Number, { nullable: true }) lat?: any; // Decimal -> exposed as Float
   @Field(() => Number, { nullable: true }) lng?: any; // Decimal -> exposed as Float
