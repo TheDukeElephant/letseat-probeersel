@@ -2,6 +2,27 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input CreateRestaurantInput {
+  address: String!
+  avgPrepTimeMins: Float
+  cuisine: CuisineType
+  deliveryRadiusKm: Float
+  description: String
+  email: String!
+  heroImageUrl: String
+  isFeatured: Boolean
+  lat: Float
+  lng: Float
+  logoUrl: String
+  minOrderAmount: Float
+  name: String!
+  phone: String
+  serviceFeePercent: Float
+  slug: String!
+  vatNumber: String
+  websiteUrl: String
+}
+
 input CreateUserInput {
   email: String!
   groupIds: [String!]
@@ -9,6 +30,21 @@ input CreateUserInput {
   password: String!
   phone: String
   role: Role
+}
+
+enum CuisineType {
+  BURGER
+  CHINESE
+  DESSERT
+  HEALTHY
+  INDIAN
+  MEDITERRANEAN
+  MEXICAN
+  PIZZA
+  SUSHI
+  THAI
+  UNSPECIFIED
+  VEGAN
 }
 
 """
@@ -30,26 +66,81 @@ type Mutation {
   addGroupAdmin(groupId: String!, userId: String!): GroupModel!
   addUserToGroup(groupId: String!, userId: String!): GroupModel!
   createGroup(name: String!): GroupModel!
+  createRestaurant(data: CreateRestaurantInput!): RestaurantModel!
   createUser(data: CreateUserInput!): UserModel!
   deleteGroup(id: String!): Boolean!
+  deleteRestaurant(id: String!): Boolean!
   deleteUser(id: String!): Boolean!
   removeGroupAdmin(groupId: String!, userId: String!): GroupModel!
   removeUserFromGroup(groupId: String!, userId: String!): GroupModel!
   updateGroup(id: String!, name: String!): GroupModel!
+  updateRestaurant(data: UpdateRestaurantInput!): RestaurantModel!
   updateUser(data: UpdateUserInput!): UserModel!
 }
 
 type Query {
   group(id: String!): GroupModel
   groups: [GroupModel!]!
+  restaurant(id: String!): RestaurantModel
+  restaurants: [RestaurantModel!]!
   user(id: String!): UserModel
   users: [UserModel!]!
+}
+
+type RestaurantModel {
+  address: String!
+  avgPrepTimeMins: Float
+  createdAt: DateTime!
+  cuisine: CuisineType
+  deliveryRadiusKm: Float
+  description: String
+  email: String!
+  heroImageUrl: String
+  id: ID!
+  isActive: Boolean!
+  isFeatured: Boolean!
+  lat: Float
+  lng: Float
+  logoUrl: String
+  minOrderAmount: Float
+  name: String!
+  phone: String
+  ratingAverage: Float
+  ratingCount: Float!
+  serviceFeePercent: Float
+  slug: String!
+  updatedAt: DateTime!
+  vatNumber: String
+  websiteUrl: String
 }
 
 enum Role {
   ADMIN
   RESTAURANT
   USER
+}
+
+input UpdateRestaurantInput {
+  address: String
+  avgPrepTimeMins: Float
+  cuisine: CuisineType
+  deliveryRadiusKm: Float
+  description: String
+  email: String
+  heroImageUrl: String
+  id: ID!
+  isActive: Boolean
+  isFeatured: Boolean
+  lat: Float
+  lng: Float
+  logoUrl: String
+  minOrderAmount: Float
+  name: String
+  phone: String
+  serviceFeePercent: Float
+  slug: String
+  vatNumber: String
+  websiteUrl: String
 }
 
 input UpdateUserInput {

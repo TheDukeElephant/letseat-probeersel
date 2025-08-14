@@ -50,6 +50,22 @@ enum DeliveryStatus {
   CANCELLED
 }
 
+// High-level cuisine categorization for discovery & filtering.
+enum CuisineType {
+  UNSPECIFIED
+  BURGER
+  PIZZA
+  SUSHI
+  INDIAN
+  CHINESE
+  THAI
+  MEXICAN
+  MEDITERRANEAN
+  DESSERT
+  VEGAN
+  HEALTHY
+}
+
 /* -------------------------------------------------- *
  * CORE MODELS
  * -------------------------------------------------- */
@@ -85,10 +101,38 @@ model Restaurant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Branding / media
+  logoUrl       String?
+  heroImageUrl  String?
+
+  // Classification & discovery
+  cuisine       CuisineType? @default(UNSPECIFIED)
+  isFeatured    Boolean      @default(false) // promotes in listings
+
+  // Operational metadata
+  minOrderAmount    Decimal?   // Minimum order value in platform currency
+  deliveryRadiusKm  Int?       // Service radius in km
+  avgPrepTimeMins   Int?       // Average preparation time
+
+  // Commercial / financial
+  serviceFeePercent Decimal?   // Platform service fee override
+  vatNumber         String?    @unique @db.VarChar(64)
+
+  // Aggregated ratings (denormalized for quick reads)
+  ratingAverage     Decimal?   // e.g. 4.6 (store as numeric, compute externally)
+  ratingCount       Int        @default(0)
+
+  // Optional external link
+  websiteUrl        String?
+
   // relations
   menus       Menu[]
   orders      Order[]
   addresses   Address[]
+
+  @@index([isActive])
+  @@index([cuisine])
+  @@index([isFeatured])
 }
 
 model Driver {

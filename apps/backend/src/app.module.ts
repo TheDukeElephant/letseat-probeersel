@@ -5,6 +5,7 @@ import { join } from 'path';
 import { PrismaService } from './prisma/prisma.service';
 import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
 
 // Later: AuthModule, OrdersModule, RestaurantsModule, MenusModule, GroupsModule, PaymentsModule
 
@@ -19,6 +20,7 @@ import { GroupsModule } from './groups/groups.module';
     }),
   UsersModule,
   GroupsModule,
+  RestaurantsModule,
   ],
   controllers: [],
   providers: [PrismaService],

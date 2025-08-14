@@ -1,12 +1,12 @@
 // Layout handled by (dashboard)/layout.tsx
+import { RestaurantsClient } from '@/components/restaurants/restaurants-client';
 
 export const metadata = { title: "Let's Eat Admin | Restaurants" }
 
 export default function RestaurantsPage() {
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-semibold tracking-tight">Restaurants</h2>
-      <p className="text-sm text-muted-foreground">View and manage restaurants. (Future: real-time updates, status changes, refunds)</p>
+    <div className="p-6">
+      <RestaurantsClient />
     </div>
   )
 }
